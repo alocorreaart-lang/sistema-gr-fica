@@ -3,6 +3,15 @@ import React, { useState } from 'react';
 import { Plus, Search, Mail, Phone, User, Edit2, Trash, X, Save } from 'lucide-react';
 import { Client } from '../types';
 
+const formatPhone = (value: string) => {
+  if (!value) return "";
+  const numbers = value.replace(/\D/g, "");
+  if (numbers.length <= 2) return numbers.replace(/(\d{2})/, "($1");
+  if (numbers.length <= 6) return numbers.replace(/(\d{2})(\d{0,4})/, "($1) $2");
+  if (numbers.length <= 10) return numbers.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3");
+  return numbers.substring(0, 11).replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+};
+
 const Clients: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,7 +55,7 @@ const Clients: React.FC = () => {
     setFormData({
       name: client.name,
       email: client.email,
-      phone: client.phone,
+      phone: formatPhone(client.phone),
       document: client.document,
       responsible: client.responsible || '',
       address: client.address || '',
@@ -116,7 +125,7 @@ const Clients: React.FC = () => {
             <p className="text-xs text-gray-400 font-mono mb-4">{client.document}</p>
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-gray-600"><Mail size={14} className="text-gray-400" /><span className="truncate">{client.email}</span></div>
-              <div className="flex items-center gap-2 text-sm text-gray-600"><Phone size={14} className="text-gray-400" /><span>{client.phone}</span></div>
+              <div className="flex items-center gap-2 text-sm text-gray-600"><Phone size={14} className="text-gray-400" /><span>{formatPhone(client.phone)}</span></div>
             </div>
             <button 
               onClick={() => alert(`Histórico de ${client.name} em desenvolvimento...`)}
@@ -163,7 +172,7 @@ const Clients: React.FC = () => {
                     placeholder="(00) 00000-0000"
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 focus:ring-0 outline-none transition-all placeholder:text-gray-400" 
                     value={formData.phone} 
-                    onChange={e => setFormData({...formData, phone: e.target.value})} 
+                    onChange={e => setFormData({...formData, phone: formatPhone(e.target.value)})} 
                   />
                 </div>
 

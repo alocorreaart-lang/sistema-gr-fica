@@ -19,6 +19,15 @@ interface OrderItem {
   price: number;
 }
 
+const formatPhone = (value: string) => {
+  if (!value) return "";
+  const numbers = value.replace(/\D/g, "");
+  if (numbers.length <= 2) return numbers.replace(/(\d{2})/, "($1");
+  if (numbers.length <= 6) return numbers.replace(/(\d{2})(\d{0,4})/, "($1) $2");
+  if (numbers.length <= 10) return numbers.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3");
+  return numbers.substring(0, 11).replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+};
+
 const Orders: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -390,8 +399,6 @@ const Orders: React.FC = () => {
         </table>
       </div>
 
-      {/* Modals follow (same as current but with updated logic for payments) */}
-      {/* ... keeping the rest of the file contents for context and completion ... */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 no-print">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh] animate-in zoom-in duration-200 overflow-hidden">
@@ -415,7 +422,7 @@ const Orders: React.FC = () => {
                   onChange={(e) => {
                     const client = clients.find(c => c.id === e.target.value);
                     if (client) {
-                      setFormData({...formData, clientId: client.id, clientName: client.name, phone: client.phone});
+                      setFormData({...formData, clientId: client.id, clientName: client.name, phone: formatPhone(client.phone)});
                     } else {
                       setFormData({...formData, clientId: '', clientName: '', phone: ''});
                     }
@@ -437,11 +444,12 @@ const Orders: React.FC = () => {
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Telefone</label>
                     <input type="text" placeholder="(00) 00000-0000"
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})}
+                      value={formData.phone} onChange={e => setFormData({...formData, phone: formatPhone(e.target.value)})}
                     />
                   </div>
                 </div>
               </div>
+              {/* ... (rest of the code stays the same) */}
               <div className="space-y-4 pt-4 border-t border-gray-100">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <h4 className="text-lg font-bold text-slate-800">Adicionar Itens</h4>
@@ -594,7 +602,7 @@ const Orders: React.FC = () => {
           </div>
         </div>
       )}
-      {/* (Rest of modals like payment and preview remain here as well...) */}
+      {/* ... (rest of the code stays the same) */}
       {isPaymentModalOpen && activeOrder && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 no-print">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in duration-200">
@@ -646,6 +654,98 @@ const Orders: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {isPreviewOpen && activeOrder && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[95vh]">
+            <div className="p-4 border-b flex justify-between items-center bg-gray-50 no-print">
+              <div className="flex gap-2 p-1 bg-gray-200 rounded-lg">
+                {(['PEDIDO', 'ORCAMENTO', 'OS'] as DocType[]).map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setSelectedDocType(type)}
+                    className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all ${
+                      selectedDocType === type 
+                        ? 'bg-white shadow-sm' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                    style={selectedDocType === type ? { color: sysSettings.primaryColor } : {}}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handlePrint} 
+                  className="text-white px-4 py-2 rounded-lg flex items-center gap-2 font-bold text-xs transition-all active:scale-95 shadow-md"
+                  style={{ backgroundColor: sysSettings.primaryColor }}
+                >
+                  <Printer size={16} /> IMPRIMIR / PDF
+                </button>
+                <button 
+                  onClick={() => setIsPreviewOpen(false)} 
+                  className="text-gray-400 hover:text-gray-600 p-2"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-100 flex justify-center">
+              <div id="print-area" className="bg-white w-full md:w-[210mm] min-h-[297mm] p-6 md:p-[20mm] shadow-2xl flex flex-col text-slate-800 font-sans">
+                <div className="flex justify-between items-start mb-8">
+                  <div className="flex-1">
+                    <div className="pb-4" style={{ borderBottom: `4px solid ${sysSettings.primaryColor}` }}>
+                      <h1 className="text-3xl font-black tracking-tighter uppercase mb-1" style={{ color: sysSettings.primaryColor }}>
+                        {sysSettings.companyName}
+                      </h1>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">
+                        {sysSettings.companyTagline}
+                      </p>
+                    </div>
+                    <div className="mt-4 text-[10px] text-gray-500 leading-relaxed font-medium">
+                      <p>{sysSettings.address}</p>
+                      <p><span className="font-bold">CNPJ:</span> {sysSettings.cnpj}</p>
+                      <p><span className="font-bold">Tel:</span> {sysSettings.phone} | <span className="font-bold">Email:</span> {sysSettings.email}</p>
+                      {sysSettings.website && <p className="font-bold underline">{sysSettings.website}</p>}
+                    </div>
+                  </div>
+                  <div className="text-right pl-8">
+                    <div className="inline-block px-4 py-1 rounded text-white font-black text-sm mb-2" style={{ backgroundColor: sysSettings.primaryColor }}>{selectedDocType}</div>
+                    <p className="text-xl font-bold">Nº {activeOrder.orderNumber}</p>
+                    <p className="text-xs text-gray-400">Emissão: {activeOrder.date}</p>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <div className="bg-gray-50 p-4 rounded mb-8">
+                    <h4 className="text-[10px] font-black text-gray-400 uppercase mb-1">Cliente</h4>
+                    <p className="font-bold">{activeOrder.clientName}</p>
+                  </div>
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b-2 text-[10px] uppercase font-bold text-gray-400">
+                        <th className="text-left py-2">Serviço</th>
+                        <th className="text-right py-2">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b">
+                        <td className="py-4 font-medium">{activeOrder.productName}</td>
+                        <td className="py-4 text-right font-bold">R$ {activeOrder.total.toFixed(2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-8 pt-6 border-t">
+                  <div className="flex justify-end gap-10">
+                    <p className="font-black text-xl">TOTAL: R$ {activeOrder.total.toFixed(2)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
