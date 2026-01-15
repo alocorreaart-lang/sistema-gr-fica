@@ -1,0 +1,196 @@
+
+import React, { useState } from 'react';
+import { Package, Search, Plus, X, Trash2, Edit, Calculator, Ruler, Layers } from 'lucide-react';
+import { Product } from '../types';
+
+const Products: React.FC = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [products, setProducts] = useState<Product[]>([
+    { id: '1', name: 'Cartão de Visita 4x4', basePrice: 25.00, salePrice: 45.00, margin: 80, size: '9x5cm', material: 'Couché 300g', description: 'Verniz Total Frente' },
+    { id: '2', name: 'Panfleto A5', basePrice: 80.00, salePrice: 120.00, margin: 50, size: '15x21cm', material: 'Papel 90g', description: '1000 unidades, Colorido' },
+    { id: '3', name: 'Banner Lona', basePrice: 45.00, salePrice: 85.00, margin: 88.88, size: '100x100cm', material: 'Lona 440g', description: 'Acabamento com bastão e cordão' },
+  ]);
+
+  const [formData, setFormData] = useState({
+    name: '',
+    basePrice: '',
+    salePrice: '',
+    margin: '',
+    size: '',
+    material: '',
+    description: ''
+  });
+
+  const handleOpenCreateModal = () => {
+    setEditingProduct(null);
+    setFormData({ name: '', basePrice: '', salePrice: '', margin: '', size: '', material: '', description: '' });
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (p: Product) => {
+    setEditingProduct(p);
+    setFormData({
+      name: p.name,
+      basePrice: p.basePrice.toString(),
+      salePrice: p.salePrice.toString(),
+      margin: p.margin.toString(),
+      size: p.size,
+      material: p.material,
+      description: p.description
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleCalculation = (field: 'basePrice' | 'salePrice' | 'margin', value: string) => {
+    const numValue = parseFloat(value) || 0;
+    const base = field === 'basePrice' ? numValue : parseFloat(formData.basePrice) || 0;
+    const sale = field === 'salePrice' ? numValue : parseFloat(formData.salePrice) || 0;
+    const margin = field === 'margin' ? numValue : parseFloat(formData.margin) || 0;
+
+    let updatedData = { ...formData, [field]: value };
+
+    if (field === 'basePrice' || field === 'margin') {
+      if (base > 0 && margin > 0) {
+        const calculatedSale = base + (base * (margin / 100));
+        updatedData.salePrice = calculatedSale.toFixed(2);
+      }
+    } else if (field === 'salePrice') {
+      if (base > 0 && sale > 0) {
+        const calculatedMargin = ((sale - base) / base) * 100;
+        updatedData.margin = calculatedMargin.toFixed(2);
+      }
+    }
+    setFormData(updatedData);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const productData: Product = {
+      id: editingProduct ? editingProduct.id : Math.random().toString(36).substr(2, 9),
+      name: formData.name,
+      basePrice: parseFloat(formData.basePrice) || 0,
+      salePrice: parseFloat(formData.salePrice) || 0,
+      margin: parseFloat(formData.margin) || 0,
+      size: formData.size,
+      material: formData.material,
+      description: formData.description
+    };
+
+    if (editingProduct) {
+      setProducts(products.map(p => p.id === editingProduct.id ? productData : p));
+    } else {
+      setProducts([productData, ...products]);
+    }
+    setIsModalOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm('Excluir este produto permanentemente?')) {
+      setProducts(products.filter(p => p.id !== id));
+    }
+  };
+
+  const filteredProducts = products.filter(p => 
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-indigo-600 text-white rounded-lg shadow-lg"><Package size={24} /></div>
+          <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-tight">Produtos & Serviços</h2>
+        </div>
+        <button onClick={handleOpenCreateModal} className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 hover:bg-indigo-700 font-bold shadow-md">
+          <Plus size={20} /> NOVO PRODUTO
+        </button>
+      </div>
+
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+          <input 
+            type="text" 
+            placeholder="Buscar produtos..." 
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50/50"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <table className="w-full text-left">
+          <thead className="bg-gray-50 border-b border-gray-200 text-[10px] font-black text-gray-500 uppercase tracking-widest">
+            <tr>
+              <th className="px-6 py-4">Produto</th>
+              <th className="px-6 py-4">Custo</th>
+              <th className="px-6 py-4">Margem</th>
+              <th className="px-6 py-4">Venda</th>
+              <th className="px-6 py-4 text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {filteredProducts.map(product => (
+              <tr key={product.id} className="hover:bg-indigo-50/30 transition-colors">
+                <td className="px-6 py-4"><span className="font-bold text-gray-800">{product.name}</span></td>
+                <td className="px-6 py-4 text-sm text-gray-500">R$ {product.basePrice.toFixed(2)}</td>
+                <td className="px-6 py-4"><span className="px-2 py-1 bg-green-50 text-green-700 rounded text-[10px] font-bold">{product.margin.toFixed(1)}%</span></td>
+                <td className="px-6 py-4 font-black text-indigo-700 text-lg">R$ {product.salePrice.toFixed(2)}</td>
+                <td className="px-6 py-4">
+                  <div className="flex justify-center gap-2">
+                    <button onClick={() => handleOpenEditModal(product)} className="p-2 text-gray-400 hover:text-indigo-600"><Edit size={16} /></button>
+                    <button onClick={() => handleDelete(product.id)} className="p-2 text-gray-400 hover:text-red-600"><Trash2 size={16} /></button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in duration-200">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-indigo-600 text-white">
+              <h3 className="text-xl font-bold uppercase">{editingProduct ? 'Editar Produto' : 'Novo Produto'}</h3>
+              <button onClick={() => setIsModalOpen(false)}><X size={24} /></button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Nome *</label>
+                  <input required type="text" className="w-full px-4 py-2 border border-gray-200 rounded-lg" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Tamanho</label>
+                  <input type="text" className="w-full px-4 py-2 border border-gray-200 rounded-lg" value={formData.size} onChange={e => setFormData({...formData, size: e.target.value})} />
+                </div>
+              </div>
+              <div className="bg-indigo-50/50 p-6 rounded-xl grid grid-cols-3 gap-4">
+                <div><label className="block text-[10px] font-black text-gray-500 uppercase">Custo</label>
+                  <input type="number" step="0.01" className="w-full px-3 py-2 border rounded-lg" value={formData.basePrice} onChange={e => handleCalculation('basePrice', e.target.value)} />
+                </div>
+                <div><label className="block text-[10px] font-black text-gray-500 uppercase">Margem %</label>
+                  <input type="number" step="0.01" className="w-full px-3 py-2 border rounded-lg" value={formData.margin} onChange={e => handleCalculation('margin', e.target.value)} />
+                </div>
+                <div><label className="block text-[10px] font-black text-gray-500 uppercase">Venda</label>
+                  <input type="number" step="0.01" className="w-full px-3 py-2 border rounded-lg" value={formData.salePrice} onChange={e => handleCalculation('salePrice', e.target.value)} />
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 border rounded-xl font-bold text-xs uppercase tracking-widest">Cancelar</button>
+                <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl">Salvar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Products;
