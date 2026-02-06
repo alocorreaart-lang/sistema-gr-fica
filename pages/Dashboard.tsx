@@ -21,12 +21,20 @@ const StatusCounter = ({ label, count, icon: Icon, colorClass }: { label: string
   </div>
 );
 
-const FinancialSummary = ({ title, value, type }: { title: string, value: string, type: 'income' | 'pending' }) => (
-  <div className={`p-4 rounded-xl shadow-sm border ${type === 'income' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-slate-800 border-gray-200'}`}>
-    <span className={`text-[9px] font-black uppercase tracking-widest ${type === 'income' ? 'text-blue-100' : 'text-gray-400'}`}>{title}</span>
-    <p className="text-xl font-black mt-0.5 leading-none">{value}</p>
-  </div>
-);
+const StatusCard = ({ label, value, variant }: { label: string, value: string, variant: 'green' | 'red' | 'blue' }) => {
+  const variants = {
+    green: 'bg-green-50/50 border-green-100 text-green-700',
+    red: 'bg-red-50/50 border-red-100 text-red-700',
+    blue: 'bg-blue-50/50 border-blue-100 text-blue-700'
+  };
+
+  return (
+    <div className={`p-6 rounded-2xl shadow-sm border ${variants[variant]} flex-1`}>
+      <span className="text-xs font-semibold text-slate-500 block mb-3">{label}</span>
+      <p className="text-3xl font-black text-slate-900 leading-none">{value}</p>
+    </div>
+  );
+};
 
 interface OrderTableProps {
   title: string;
@@ -191,6 +199,7 @@ const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [financialEntries, setFinancialEntries] = useState<FinancialEntry[]>([]);
   const [systemPaymentMethods, setSystemPaymentMethods] = useState<PaymentMethod[]>([]);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
@@ -202,8 +211,13 @@ const Dashboard: React.FC = () => {
     const loadData = () => {
       const storedOrders = localStorage.getItem('quickprint_orders');
       if (storedOrders) setOrders(JSON.parse(storedOrders));
+      
+      const storedFinancial = localStorage.getItem('quickprint_financial');
+      if (storedFinancial) setFinancialEntries(JSON.parse(storedFinancial));
+      
       const storedClients = localStorage.getItem('quickprint_clients');
       if (storedClients) setClients(JSON.parse(storedClients));
+      
       const storedSettings = localStorage.getItem('quickprint_settings');
       if (storedSettings) {
         const settings: SystemSettings = JSON.parse(storedSettings);
@@ -274,6 +288,7 @@ const Dashboard: React.FC = () => {
       status: 'PAID'
     };
     localStorage.setItem('quickprint_financial', JSON.stringify([newFinEntry, ...financial]));
+    setFinancialEntries([newFinEntry, ...financial]);
     
     setIsDetailsOpen(false);
     alert('Pagamento registrado com sucesso!');
@@ -292,6 +307,15 @@ const Dashboard: React.FC = () => {
   const totalReceivable = activeOrders.reduce((acc, o) => acc + (o.total - o.entry), 0);
   const totalInFlow = activeOrders.reduce((acc, o) => acc + o.total, 0);
 
+  const today = new Date().toISOString().split('T')[0];
+  const receivableToday = financialEntries
+    .filter(e => e.type === 'INCOME' && e.status === 'PENDING' && e.date === today)
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const payableToday = financialEntries
+    .filter(e => e.type === 'EXPENSE' && e.status === 'PENDING' && e.date === today)
+    .reduce((acc, e) => acc + e.amount, 0);
+
   const getOrdersByStatus = (status: OrderStatus) => activeOrders.filter(o => o.status === status);
   
   const openOrders = getOrdersByStatus(OrderStatus.OPEN);
@@ -303,16 +327,35 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-8">
-      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+      <header className="space-y-6">
         <div>
           <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight leading-none">Painel de Gestão Operacional</h2>
           <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
             <Clock size={12} className="text-blue-500" /> Fluxo de Trabalho Ativo
           </p>
         </div>
-        <div className="flex gap-3 w-full lg:w-auto">
-          <FinancialSummary title="Volume em Fluxo" value={`R$ ${totalInFlow.toFixed(2)}`} type="pending" />
-          <FinancialSummary title="Total a Receber" value={`R$ ${totalReceivable.toFixed(2)}`} type="income" />
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatusCard 
+            label="A receber hoje" 
+            value={`R$ ${receivableToday.toFixed(2)}`} 
+            variant="green" 
+          />
+          <StatusCard 
+            label="A pagar hoje" 
+            value={`R$ ${payableToday.toFixed(2)}`} 
+            variant="red" 
+          />
+          <StatusCard 
+            label="Volume em Fluxo" 
+            value={`R$ ${totalInFlow.toFixed(2)}`} 
+            variant="blue" 
+          />
+          <StatusCard 
+            label="Total a Receber" 
+            value={`R$ ${totalReceivable.toFixed(2)}`} 
+            variant="blue" 
+          />
         </div>
       </header>
 
@@ -472,7 +515,7 @@ const Dashboard: React.FC = () => {
                     </div>
                     <button 
                       onClick={handleRegisterPayment}
-                      className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 active:scale-95 flex items-center justify-center gap-3"
+                      className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-100 active:scale-95 flex items-center justify-center gap-3"
                     >
                       <CheckCircle2 size={18} /> Confirmar Recebimento e Atualizar
                     </button>
