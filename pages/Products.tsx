@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Package, Search, Plus, X, Trash2, Edit, Calculator, Ruler, Layers } from 'lucide-react';
 import { Product } from '../types';
 
@@ -7,20 +7,29 @@ const Products: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [products, setProducts] = useState<Product[]>([
-    { id: '1', name: 'Cartão de Visita 4x4', basePrice: 25.00, salePrice: 45.00, margin: 80, size: '9x5cm', material: 'Couché 300g', description: 'Verniz Total Frente' },
-    { id: '2', name: 'Panfleto A5', basePrice: 80.00, salePrice: 120.00, margin: 50, size: '15x21cm', material: 'Papel 90g', description: '1000 unidades, Colorido' },
-    { id: '3', name: 'Banner Lona', basePrice: 45.00, salePrice: 85.00, margin: 88.88, size: '100x100cm', material: 'Lona 440g', description: 'Acabamento com bastão e cordão' },
-  ]);
+  const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('quickprint_products');
+    if (stored) {
+      setProducts(JSON.parse(stored));
+    } else {
+      const initial = [
+        { id: '1', name: 'Cartão de Visita 4x4', basePrice: 25.00, salePrice: 45.00, margin: 80, size: '9x5cm', material: 'Couché 300g', description: 'Verniz Total Frente' },
+        { id: '2', name: 'Panfleto A5', basePrice: 80.00, salePrice: 120.00, margin: 50, size: '15x21cm', material: 'Papel 90g', description: '1000 unidades, Colorido' },
+      ];
+      setProducts(initial);
+      localStorage.setItem('quickprint_products', JSON.stringify(initial));
+    }
+  }, []);
+
+  const saveProducts = (newProducts: Product[]) => {
+    setProducts(newProducts);
+    localStorage.setItem('quickprint_products', JSON.stringify(newProducts));
+  };
 
   const [formData, setFormData] = useState({
-    name: '',
-    basePrice: '',
-    salePrice: '',
-    margin: '',
-    size: '',
-    material: '',
-    description: ''
+    name: '', basePrice: '', salePrice: '', margin: '', size: '', material: '', description: ''
   });
 
   const handleOpenCreateModal = () => {
@@ -79,22 +88,21 @@ const Products: React.FC = () => {
     };
 
     if (editingProduct) {
-      setProducts(products.map(p => p.id === editingProduct.id ? productData : p));
+      saveProducts(products.map(p => p.id === editingProduct.id ? productData : p));
     } else {
-      setProducts([productData, ...products]);
+      saveProducts([productData, ...products]);
     }
     setIsModalOpen(false);
   };
 
   const handleDelete = (id: string) => {
     if (confirm('Excluir este produto permanentemente?')) {
-      setProducts(products.filter(p => p.id !== id));
+      saveProducts(products.filter(p => p.id !== id));
     }
   };
 
   const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.description.toLowerCase().includes(searchTerm.toLowerCase())
+    p.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -115,7 +123,7 @@ const Products: React.FC = () => {
           <input 
             type="text" 
             placeholder="Buscar produtos..." 
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50/50"
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50/50 outline-none focus:ring-2 focus:ring-indigo-500/20"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
@@ -129,61 +137,63 @@ const Products: React.FC = () => {
               <th className="px-6 py-4">Produto</th>
               <th className="px-6 py-4">Custo</th>
               <th className="px-6 py-4">Margem</th>
-              <th className="px-6 py-4">Venda</th>
+              <th className="px-6 py-4">Valor Unitário</th>
               <th className="px-6 py-4 text-center">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {filteredProducts.map(product => (
               <tr key={product.id} className="hover:bg-indigo-50/30 transition-colors">
-                <td className="px-6 py-4"><span className="font-bold text-gray-800">{product.name}</span></td>
+                <td className="px-6 py-4"><span className="font-bold text-gray-800 uppercase">{product.name}</span></td>
                 <td className="px-6 py-4 text-sm text-gray-500">R$ {product.basePrice.toFixed(2)}</td>
                 <td className="px-6 py-4"><span className="px-2 py-1 bg-green-50 text-green-700 rounded text-[10px] font-bold">{product.margin.toFixed(1)}%</span></td>
                 <td className="px-6 py-4 font-black text-indigo-700 text-lg">R$ {product.salePrice.toFixed(2)}</td>
-                <td className="px-6 py-4">
-                  <div className="flex justify-center gap-2">
-                    <button onClick={() => handleOpenEditModal(product)} className="p-2 text-gray-400 hover:text-indigo-600"><Edit size={16} /></button>
-                    <button onClick={() => handleDelete(product.id)} className="p-2 text-gray-400 hover:text-red-600"><Trash2 size={16} /></button>
+                <td className="px-6 py-4 text-center">
+                  <div className="flex justify-center gap-1">
+                    <button onClick={() => handleOpenEditModal(product)} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Edit size={16} /></button>
+                    <button onClick={() => handleDelete(product.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={16} /></button>
                   </div>
                 </td>
               </tr>
             ))}
+            {filteredProducts.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">Nenhum produto cadastrado.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in duration-200">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-indigo-600 text-white">
-              <h3 className="text-xl font-bold uppercase">{editingProduct ? 'Editar Produto' : 'Novo Produto'}</h3>
+              <h3 className="text-xl font-bold uppercase tracking-tight">{editingProduct ? 'Editar Produto' : 'Novo Produto'}</h3>
               <button onClick={() => setIsModalOpen(false)}><X size={24} /></button>
             </div>
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
               <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Nome *</label>
-                  <input required type="text" className="w-full px-4 py-2 border border-gray-200 rounded-lg" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nome do Produto / Serviço *</label>
+                  <input required type="text" className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-50 font-bold uppercase" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Tamanho</label>
-                  <input type="text" className="w-full px-4 py-2 border border-gray-200 rounded-lg" value={formData.size} onChange={e => setFormData({...formData, size: e.target.value})} />
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Custo Base (R$)</label>
+                  <input type="number" step="0.01" className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-50 font-bold" value={formData.basePrice} onChange={e => handleCalculation('basePrice', e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Margem (%)</label>
+                  <input type="number" step="0.1" className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-50 font-bold" value={formData.margin} onChange={e => handleCalculation('margin', e.target.value)} />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Valor de Venda (R$)</label>
+                  <input type="number" step="0.01" className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-50 font-black text-indigo-700 bg-indigo-50/30" value={formData.salePrice} onChange={e => handleCalculation('salePrice', e.target.value)} />
                 </div>
               </div>
-              <div className="bg-indigo-50/50 p-6 rounded-xl grid grid-cols-3 gap-4">
-                <div><label className="block text-[10px] font-black text-gray-500 uppercase">Custo</label>
-                  <input type="number" step="0.01" className="w-full px-3 py-2 border rounded-lg" value={formData.basePrice} onChange={e => handleCalculation('basePrice', e.target.value)} />
-                </div>
-                <div><label className="block text-[10px] font-black text-gray-500 uppercase">Margem %</label>
-                  <input type="number" step="0.01" className="w-full px-3 py-2 border rounded-lg" value={formData.margin} onChange={e => handleCalculation('margin', e.target.value)} />
-                </div>
-                <div><label className="block text-[10px] font-black text-gray-500 uppercase">Venda</label>
-                  <input type="number" step="0.01" className="w-full px-3 py-2 border rounded-lg" value={formData.salePrice} onChange={e => handleCalculation('salePrice', e.target.value)} />
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 border rounded-xl font-bold text-xs uppercase tracking-widest">Cancelar</button>
-                <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl">Salvar</button>
+              <div className="flex gap-4 pt-4">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 border border-gray-200 rounded-xl font-bold text-[10px] uppercase tracking-widest text-gray-500 hover:bg-slate-50">Cancelar</button>
+                <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-indigo-700 active:scale-95 transition-all">Salvar Produto</button>
               </div>
             </form>
           </div>

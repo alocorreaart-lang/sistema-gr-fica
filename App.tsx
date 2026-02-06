@@ -12,7 +12,8 @@ import {
   Settings, 
   UserCircle,
   Layers,
-  Archive
+  Archive,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Orders from './pages/Orders';
@@ -21,6 +22,7 @@ import Products from './pages/Products';
 import Supplies from './pages/Supplies';
 import Financial from './pages/Financial';
 import ArchivePage from './pages/Archive';
+import CalendarPage from './pages/Calendar';
 import SystemSettingsPage from './pages/SystemSettings';
 
 const SidebarItem = ({ to, icon: Icon, label }: { to: string, icon: any, label: string }) => {
@@ -55,6 +57,7 @@ const App: React.FC = () => {
           <nav className="flex-1 mt-4">
             <SidebarItem to="/" icon={LayoutDashboard} label="Painel" />
             <SidebarItem to="/pedidos" icon={ShoppingCart} label="Pedidos" />
+            <SidebarItem to="/calendario" icon={CalendarIcon} label="Calendário" />
             <SidebarItem to="/clientes" icon={Users} label="Clientes" />
             <SidebarItem to="/produtos" icon={Package} label="Produtos" />
             <SidebarItem to="/insumos" icon={Layers} label="Insumos" />
@@ -72,6 +75,7 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/pedidos" element={<Orders />} />
+            <Route path="/calendario" element={<CalendarPage />} />
             <Route path="/clientes" element={<Clients />} />
             <Route path="/produtos" element={<Products />} />
             <Route path="/insumos" element={<Supplies />} />

@@ -15,6 +15,7 @@ export interface Client {
   document: string;
   responsible?: string;
   address?: string;
+  addressNumber?: string;
   neighborhood?: string;
   city?: string;
   observations?: string;
@@ -34,11 +35,16 @@ export interface Product {
 export interface Supply {
   id: string;
   name: string;
+  description?: string;
+  category: string;
   unit: string;
   stock: number;
   minStock: number;
   costPrice: number;
   provider: string;
+  providerPhone?: string;
+  purchaseDate?: string;
+  observations?: string;
 }
 
 export interface Order {
@@ -51,8 +57,30 @@ export interface Order {
   status: OrderStatus;
   total: number;
   entry: number; 
+  entryMethod?: string; 
   date: string;
+  deliveryDate?: string;
   archived?: boolean;
+  items?: any[];
+  installmentsCount?: number;
+  installmentValue?: number;
+  firstInstallmentDate?: string;
+  installmentIntervalDays?: number;
+  paidInstallmentIndices?: number[];
+}
+
+export interface Account {
+  id: string;
+  name: string;
+  initialBalance: number;
+  type: 'BANK' | 'CASH';
+  color?: string;
+}
+
+export interface PaymentMethod {
+  id: string;
+  name: string;
+  icon?: string;
 }
 
 export interface FinancialEntry {
@@ -62,6 +90,11 @@ export interface FinancialEntry {
   type: 'INCOME' | 'EXPENSE';
   date: string;
   category: string;
+  accountId: string; 
+  method?: string; 
+  status?: 'PAID' | 'PENDING';
+  isRecurring?: boolean;
+  recurrencePeriod?: 'MONTHLY' | 'WEEKLY' | 'YEARLY';
 }
 
 export interface SystemSettings {
@@ -72,7 +105,11 @@ export interface SystemSettings {
   phone: string;
   email: string;
   website: string;
+  pixKey: string; // Nova chave para o PDF
+  pdfIntroText: string; // Novo texto para o PDF
   primaryColor: string;
   estimateValidityDays: number;
   defaultFooterNote: string;
+  accounts: Account[]; 
+  paymentMethods: PaymentMethod[]; 
 }
