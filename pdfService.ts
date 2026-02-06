@@ -16,7 +16,8 @@ export const generatePDF = (type: 'PEDIDO' | 'OS', order: Order, action: 'save' 
     email: 'contato@empresa.com',
     website: 'www.quickprint.com.br',
     pixKey: '62.287.343/0001-36',
-    pdfIntroText: 'Este texto irá aparecer no início da proposta enviada para o cliente, caso não queira inserir uma introdução basta deixar este espaço em branco.',
+    pdfIntroText: '',
+    pdfObservations: '',
     primaryColor: '#2563eb',
     estimateValidityDays: 7,
     defaultFooterNote: 'Agradecemos a sua preferência!',
@@ -201,14 +202,25 @@ export const generatePDF = (type: 'PEDIDO' | 'OS', order: Order, action: 'save' 
     
     currentY = (doc as any).lastAutoTable.finalY + 8;
 
-    // --- SEÇÃO DE OBSERVAÇÕES ---
+    // --- SEÇÃO DE OBSERVAÇÕES (Dinamizada) ---
     doc.setFillColor(242, 242, 242);
     doc.rect(margin, currentY, 180, 6, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.text("Observações", margin + 2, currentY + 4.5);
-    currentY += 20;
+    doc.text("Observações e Termos", margin + 2, currentY + 4.5);
+    currentY += 10;
 
-    // --- ASSINATURA (Apenas no Pedido) ---
+    if (settings.pdfObservations) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(80, 80, 80);
+      const splitObs = doc.splitTextToSize(settings.pdfObservations, 180);
+      doc.text(splitObs, margin, currentY);
+      currentY += (splitObs.length * 4) + 10;
+    } else {
+      currentY += 20;
+    }
+
+    // --- ASSINATURA ---
     const signatureY = 270;
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.3);

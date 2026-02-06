@@ -105,8 +105,9 @@ export interface SystemSettings {
   phone: string;
   email: string;
   website: string;
-  pixKey: string; // Nova chave para o PDF
-  pdfIntroText: string; // Novo texto para o PDF
+  pixKey: string;
+  pdfIntroText: string;
+  pdfObservations: string; // Novo campo
   primaryColor: string;
   estimateValidityDays: number;
   defaultFooterNote: string;

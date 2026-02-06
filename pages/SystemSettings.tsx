@@ -19,6 +19,7 @@ const SystemSettingsPage: React.FC = () => {
     website: 'www.quickprint.com.br',
     pixKey: '62.287.343/0001-36',
     pdfIntroText: 'Este texto irá aparecer no início da proposta enviada para o cliente, caso não queira inserir uma introdução basta deixar este espaço em branco.',
+    pdfObservations: '1. Prazo de entrega contado após aprovação da arte.\n2. Cores podem variar até 10% entre monitores e impressão.\n3. Orçamento válido por 7 dias.',
     primaryColor: '#2563eb',
     estimateValidityDays: 7,
     defaultFooterNote: 'QuickPrint Pro - Sistema de Gestão Gráfica - Gerado Digitalmente',
@@ -41,15 +42,12 @@ const SystemSettingsPage: React.FC = () => {
     const storedSettings = localStorage.getItem('quickprint_settings');
     if (storedSettings) {
       const parsed = JSON.parse(storedSettings);
-      // Fallback para novos campos se não existirem no localStorage antigo
       if (!parsed.pixKey) parsed.pixKey = '62.287.343/0001-36';
-      if (!parsed.pdfIntroText) parsed.pdfIntroText = 'Este texto irá aparecer no início da proposta enviada para o cliente...';
+      if (!parsed.pdfIntroText) parsed.pdfIntroText = '';
+      if (!parsed.pdfObservations) parsed.pdfObservations = '';
       if (!parsed.accounts) parsed.accounts = [{ id: 'default-cash', name: 'Caixa Local', initialBalance: 0, type: 'CASH', color: '#16a34a' }];
       if (!parsed.paymentMethods) parsed.paymentMethods = [
-        { id: 'pix', name: 'PIX' },
-        { id: 'card', name: 'Cartão' },
-        { id: 'cash', name: 'Dinheiro' },
-        { id: 'transfer', name: 'Transferência' }
+        { id: 'pix', name: 'PIX' }, { id: 'card', name: 'Cartão' }, { id: 'cash', name: 'Dinheiro' }, { id: 'transfer', name: 'Transferência' }
       ];
       setSettings(parsed);
     }
@@ -130,7 +128,6 @@ const SystemSettingsPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Coluna de Configurações do Sistema */}
         <div className="lg:col-span-2 space-y-6">
           <form onSubmit={handleSave} className="space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -166,7 +163,6 @@ const SystemSettingsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Configurações de PDF Customizadas */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="p-4 bg-blue-600 text-white border-b border-blue-700 flex items-center gap-2">
                 <FileText size={18} />
@@ -175,14 +171,19 @@ const SystemSettingsPage: React.FC = () => {
               <div className="p-6 space-y-6">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-gray-400 uppercase flex items-center gap-2">
-                    Chave PIX (Aparecerá no Cabeçalho) <Info size={12} className="text-blue-500" />
+                    Chave PIX (No Cabeçalho) <Info size={12} className="text-blue-500" />
                   </label>
-                  <input type="text" className="w-full px-4 py-2.5 bg-blue-50/30 border border-blue-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 font-mono text-blue-700 font-bold" value={settings.pixKey} onChange={e => setSettings({...settings, pixKey: e.target.value})} placeholder="CPF, CNPJ, Celular ou Aleatória" />
+                  <input type="text" className="w-full px-4 py-2.5 bg-blue-50/30 border border-blue-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 font-mono text-blue-700 font-bold" value={settings.pixKey} onChange={e => setSettings({...settings, pixKey: e.target.value})} />
                 </div>
                 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase">Texto de Introdução / Boas-vindas do PDF</label>
-                  <textarea rows={3} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 text-xs" value={settings.pdfIntroText} onChange={e => setSettings({...settings, pdfIntroText: e.target.value})} />
+                  <label className="text-[10px] font-black text-gray-400 uppercase">Texto de Introdução (Início do PDF)</label>
+                  <textarea rows={2} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 text-xs" value={settings.pdfIntroText} onChange={e => setSettings({...settings, pdfIntroText: e.target.value})} />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase">Termos, Garantia e Observações (Corpo do PDF)</label>
+                  <textarea rows={5} placeholder="Este texto aparecerá na seção de observações de todos os pedidos." className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 text-xs" value={settings.pdfObservations} onChange={e => setSettings({...settings, pdfObservations: e.target.value})} />
                 </div>
 
                 <div className="space-y-1">
@@ -198,7 +199,6 @@ const SystemSettingsPage: React.FC = () => {
           </form>
         </div>
 
-        {/* Coluna de Contas e Métodos */}
         <div className="space-y-6">
            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
              <div className="p-4 bg-slate-800 text-white border-b border-slate-900 flex items-center gap-2">
@@ -234,7 +234,7 @@ const SystemSettingsPage: React.FC = () => {
              </div>
              <div className="p-4 space-y-4">
                 <div className="flex gap-2">
-                  <input type="text" placeholder="Ex: Boleto, Cheque" className="flex-1 px-3 py-2 border rounded-lg text-xs" value={newPaymentMethod} onChange={e => setNewPaymentMethod(e.target.value)} />
+                  <input type="text" placeholder="Ex: PIX, Cartão" className="flex-1 px-3 py-2 border rounded-lg text-xs" value={newPaymentMethod} onChange={e => setNewPaymentMethod(e.target.value)} />
                   <button onClick={addPaymentMethod} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase"><Plus size={14} /></button>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
