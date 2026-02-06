@@ -1,0 +1,12 @@
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[build]
+  publish = "."
+
+[header.values]
+  Access-Control-Allow-Origin = "*"
+  Cache-Control = "public, max-age=0, must-revalidate"
