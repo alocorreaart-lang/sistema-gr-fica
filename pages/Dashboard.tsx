@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Order, OrderStatus, FinancialEntry, Account, PaymentMethod, SystemSettings, Client } from '../types';
 import { generatePDF } from '../pdfService';
+import { useDateFilter } from '../App';
 
 const StatusCounter = ({ label, count, icon: Icon, colorClass }: { label: string, count: number, icon: any, colorClass: string }) => (
   <div className={`bg-white p-3 rounded-xl border-l-4 ${colorClass} shadow-sm flex items-center justify-between`}>
@@ -87,7 +88,6 @@ const OrderColumn = ({ title, icon: Icon, orders, colorTheme, onStatusChange, on
         </div>
       )}
       
-      {/* Container de conteúdo */}
       <div className={`bg-white/60 rounded-b-xl border border-t-0 border-gray-200 overflow-hidden shadow-sm transition-all duration-300 ${isSpecial && !isExpanded ? 'h-0 border-none overflow-hidden' : 'flex-1 flex flex-col'}`}>
         {isSpecial ? (
           <div className="overflow-x-auto p-2">
@@ -196,6 +196,7 @@ const OrderColumn = ({ title, icon: Icon, orders, colorTheme, onStatusChange, on
 };
 
 const Dashboard: React.FC = () => {
+  const { startDate, endDate } = useDateFilter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -304,16 +305,25 @@ const Dashboard: React.FC = () => {
   };
 
   const activeOrders = orders.filter(o => !o.archived);
-  const totalReceivable = activeOrders.reduce((acc, o) => acc + (o.total - o.entry), 0);
-  const totalInFlow = activeOrders.reduce((acc, o) => acc + o.total, 0);
+  
+  const filterByRange = (date: string) => {
+    return date >= startDate && date <= endDate;
+  };
 
-  const today = new Date().toISOString().split('T')[0];
-  const receivableToday = financialEntries
-    .filter(e => e.type === 'INCOME' && e.status === 'PENDING' && e.date === today)
+  const totalInFlow = activeOrders
+    .filter(o => filterByRange(o.date))
+    .reduce((acc, o) => acc + o.total, 0);
+
+  const totalReceivable = activeOrders
+    .filter(o => filterByRange(o.date))
+    .reduce((acc, o) => acc + (o.total - o.entry), 0);
+
+  const receivableInRange = financialEntries
+    .filter(e => e.type === 'INCOME' && e.status === 'PENDING' && filterByRange(e.date))
     .reduce((acc, e) => acc + e.amount, 0);
 
-  const payableToday = financialEntries
-    .filter(e => e.type === 'EXPENSE' && e.status === 'PENDING' && e.date === today)
+  const payableInRange = financialEntries
+    .filter(e => e.type === 'EXPENSE' && e.status === 'PENDING' && filterByRange(e.date))
     .reduce((acc, e) => acc + e.amount, 0);
 
   const getOrdersByStatus = (status: OrderStatus) => activeOrders.filter(o => o.status === status);
@@ -322,42 +332,32 @@ const Dashboard: React.FC = () => {
   const artOrders = getOrdersByStatus(OrderStatus.ART);
   const prodOrders = getOrdersByStatus(OrderStatus.PRODUCTION);
   const shipOrders = getOrdersByStatus(OrderStatus.SHIPPING);
-  
   const receivableOrders = activeOrders.filter(o => (o.total - o.entry) > 0.01);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-8">
-      <header className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight leading-none">Painel de Gestão Operacional</h2>
-          <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
-            <Clock size={12} className="text-blue-500" /> Fluxo de Trabalho Ativo
-          </p>
-        </div>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatusCard 
-            label="A receber hoje" 
-            value={`R$ ${receivableToday.toFixed(2)}`} 
-            variant="green" 
-          />
-          <StatusCard 
-            label="A pagar hoje" 
-            value={`R$ ${payableToday.toFixed(2)}`} 
-            variant="red" 
-          />
-          <StatusCard 
-            label="Volume em Fluxo" 
-            value={`R$ ${totalInFlow.toFixed(2)}`} 
-            variant="blue" 
-          />
-          <StatusCard 
-            label="Total a Receber" 
-            value={`R$ ${totalReceivable.toFixed(2)}`} 
-            variant="blue" 
-          />
-        </div>
-      </header>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatusCard 
+          label="A receber no período" 
+          value={`R$ ${receivableInRange.toFixed(2)}`} 
+          variant="green" 
+        />
+        <StatusCard 
+          label="A pagar no período" 
+          value={`R$ ${payableInRange.toFixed(2)}`} 
+          variant="red" 
+        />
+        <StatusCard 
+          label="Vendas do período" 
+          value={`R$ ${totalInFlow.toFixed(2)}`} 
+          variant="blue" 
+        />
+        <StatusCard 
+          label="Saldo a receber" 
+          value={`R$ ${totalReceivable.toFixed(2)}`} 
+          variant="blue" 
+        />
+      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <StatusCounter label="Em Aberto" count={openOrders.length} icon={ShoppingCart} colorClass="border-l-blue-500" />

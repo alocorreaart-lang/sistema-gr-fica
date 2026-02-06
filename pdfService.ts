@@ -172,17 +172,47 @@ export const generatePDF = (type: 'PEDIDO' | 'OS', order: Order, action: 'save' 
     doc.text("DADOS DO PAGAMENTO", margin + 2, currentY + 4.5);
     currentY += 6;
 
-    const paymentRows = [
-      [
+    const paymentRows: any[] = [];
+
+    // 1. Adicionar Linha de Entrada (se houver)
+    if (order.entry > 0) {
+      paymentRows.push([
         new Date(order.date + 'T12:00:00').toLocaleDateString('pt-BR'),
-        order.total.toFixed(2),
+        order.entry.toFixed(2),
         order.entryMethod || "PIX",
-        order.entry > 0 ? `Sinal de R$ ${order.entry.toFixed(2)} recebido.` : "Aguardando pagamento"
-      ]
-    ];
+        "Sinal / Entrada (Pago)"
+      ]);
+    }
+
+    // 2. Adicionar Linhas de Parcelas (se houver parcelamento)
+    if (order.installmentsCount && order.installmentsCount > 1 && order.firstInstallmentDate) {
+      const instValue = order.installmentValue || ((order.total - order.entry) / order.installmentsCount);
+      const startDate = new Date(order.firstInstallmentDate + 'T12:00:00');
+      const interval = order.installmentIntervalDays || 30;
+
+      for (let i = 0; i < order.installmentsCount; i++) {
+        const dueDate = new Date(startDate);
+        dueDate.setDate(startDate.getDate() + (i * interval));
+        
+        paymentRows.push([
+          dueDate.toLocaleDateString('pt-BR'),
+          instValue.toFixed(2),
+          "A Definir / Boleto / Cartão",
+          `Parcela ${i + 1} de ${order.installmentsCount}`
+        ]);
+      }
+    } else if ((order.total - order.entry) > 0.01) {
+      // 3. Se não houver parcelas mas houver saldo (Pagamento único posterior)
+      paymentRows.push([
+        order.deliveryDate ? new Date(order.deliveryDate + 'T12:00:00').toLocaleDateString('pt-BR') : "Na Entrega",
+        (order.total - order.entry).toFixed(2),
+        "A Definir",
+        "Saldo Restante / Pagamento Único"
+      ]);
+    }
 
     autoTable(doc, {
-      head: [["VENCIMENTO", "VALOR", "FORMA DE PAGAMENTO", "OBSERVAÇÃO"]],
+      head: [["VENCIMENTO", "VALOR (R$)", "MÉTODO", "OBSERVAÇÃO"]],
       body: paymentRows,
       startY: currentY,
       theme: 'grid',
@@ -197,6 +227,12 @@ export const generatePDF = (type: 'PEDIDO' | 'OS', order: Order, action: 'save' 
         fontSize: 8, 
         lineColor: [220, 220, 220],
         lineWidth: 0.05
+      },
+      columnStyles: {
+        0: { cellWidth: 30 },
+        1: { cellWidth: 30, halign: 'right' },
+        2: { cellWidth: 40 },
+        3: { cellWidth: 'auto' }
       }
     });
     

@@ -4,10 +4,11 @@ import {
   Plus, Search, Pencil, Trash2, X, ShoppingCart, 
   FileText, PlusCircle, MinusCircle, User, Banknote, Calculator, CreditCard, Calendar,
   Eye, Timer, ListOrdered, CheckCircle2 as CheckIcon, DollarSign, Smartphone, ArrowLeftRight, Landmark, AlertCircle,
-  Receipt, MessageSquare, Save, Activity, CalendarDays, ClipboardList, Download, Printer
+  Receipt, MessageSquare, Save, Activity, CalendarDays, ClipboardList, Download, Printer, Filter
 } from 'lucide-react';
 import { Order, OrderStatus, Client, Product, FinancialEntry, Account, SystemSettings, PaymentMethod } from '../types';
 import { generatePDF } from '../pdfService';
+import { useDateFilter } from '../App';
 
 interface OrderItem {
   id: string;
@@ -28,12 +29,13 @@ const formatPhone = (value: string) => {
 };
 
 const Orders: React.FC = () => {
+  const { startDate, endDate } = useDateFilter();
   const [searchTerm, setSearchTerm] = useState('');
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
-  const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(null);
   
   const [quickPayment, setQuickPayment] = useState({ amount: 0, method: '', accountId: '', date: new Date().toISOString().split('T')[0] });
 
@@ -43,7 +45,6 @@ const Orders: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [systemPaymentMethods, setSystemPaymentMethods] = useState<PaymentMethod[]>([]);
 
-  // Form State for New Order
   const [formData, setFormData] = useState({
     clientId: '',
     clientName: '',
@@ -59,33 +60,34 @@ const Orders: React.FC = () => {
   });
 
   useEffect(() => {
-    const storedOrders = localStorage.getItem('quickprint_orders');
-    if (storedOrders) setOrders(JSON.parse(storedOrders));
-    const storedClients = localStorage.getItem('quickprint_clients');
-    if (storedClients) setClients(JSON.parse(storedClients));
-    const storedProducts = localStorage.getItem('quickprint_products');
-    if (storedProducts) setProducts(JSON.parse(storedProducts));
-    const storedSettings = localStorage.getItem('quickprint_settings');
-    if (storedSettings) {
-      const settings: SystemSettings = JSON.parse(storedSettings);
-      setSystemSettings(settings);
-      const availableAccounts = settings.accounts || [];
-      setAccounts(availableAccounts);
-      const methods = settings.paymentMethods || [{ id: 'pix', name: 'PIX' }];
-      setSystemPaymentMethods(methods);
+    const loadData = () => {
+      const storedOrders = localStorage.getItem('quickprint_orders');
+      if (storedOrders) setOrders(JSON.parse(storedOrders));
       
-      const defaultAccountId = availableAccounts[0]?.id || '';
-      const defaultMethod = methods[0]?.name || 'PIX';
+      const storedClients = localStorage.getItem('quickprint_clients');
+      if (storedClients) setClients(JSON.parse(storedClients));
       
-      if (!editingOrderId) {
-        setFormData(prev => ({ 
-          ...prev, 
-          accountId: defaultAccountId,
-          entryMethod: defaultMethod
-        }));
+      const storedProducts = localStorage.getItem('quickprint_products');
+      if (storedProducts) setProducts(JSON.parse(storedProducts));
+      
+      const storedSettings = localStorage.getItem('quickprint_settings');
+      if (storedSettings) {
+        const settings: SystemSettings = JSON.parse(storedSettings);
+        const availableAccounts = settings.accounts || [];
+        setAccounts(availableAccounts);
+        const methods = settings.paymentMethods || [{ id: 'pix', name: 'PIX' }];
+        setSystemPaymentMethods(methods);
+        
+        if (!editingOrderId) {
+          setFormData(prev => ({ 
+            ...prev, 
+            accountId: availableAccounts[0]?.id || '',
+            entryMethod: methods[0]?.name || 'PIX'
+          }));
+        }
       }
-      setQuickPayment(prev => ({ ...prev, accountId: defaultAccountId, method: defaultMethod }));
-    }
+    };
+    loadData();
   }, [isModalOpen, isDetailsOpen, editingOrderId]);
 
   const saveOrders = (newOrders: Order[]) => {
@@ -175,82 +177,109 @@ const Orders: React.FC = () => {
     }
 
     const total = calculateTotal();
+    const balance = total - formData.entry;
+    const orderNumber = editingOrderId 
+      ? orders.find(o => o.id === editingOrderId)?.orderNumber || '0000'
+      : (orders.length + 1).toString().padStart(4, '0');
+
+    const newOrder: Order = {
+      id: editingOrderId || Math.random().toString(36).substr(2, 9),
+      orderNumber,
+      clientId: formData.clientId,
+      clientName: clients.find(c => c.id === formData.clientId)?.name || 'Cliente Desconhecido',
+      productId: formData.items[0]?.serviceId || '', 
+      productName: formData.items[0]?.serviceName || '', 
+      status: formData.status,
+      total,
+      entry: formData.entry,
+      entryMethod: formData.entryMethod,
+      date: new Date().toISOString().split('T')[0],
+      deliveryDate: formData.deliveryDate,
+      items: formData.items,
+      installmentsCount: formData.installmentsCount,
+      installmentIntervalDays: formData.installmentIntervalDays,
+      installmentValue: formData.installmentsCount > 1 ? balance / formData.installmentsCount : 0,
+      firstInstallmentDate: formData.installmentsCount > 1 ? formData.firstInstallmentDate : undefined,
+      paidInstallmentIndices: editingOrderId ? orders.find(o => o.id === editingOrderId)?.paidInstallmentIndices || [] : []
+    };
+
+    const updatedOrders = editingOrderId 
+      ? orders.map(o => o.id === editingOrderId ? newOrder : o)
+      : [newOrder, ...orders];
+      
+    saveOrders(updatedOrders);
+
+    // FINANCEIRO: Lidar com Sinal e Parcelas
+    const storedFinancial = localStorage.getItem('quickprint_financial');
+    let financial: FinancialEntry[] = storedFinancial ? JSON.parse(storedFinancial) : [];
     
-    if (editingOrderId) {
-      const updatedOrders = orders.map(o => {
-        if (o.id === editingOrderId) {
-          return {
-            ...o,
-            clientId: formData.clientId,
-            clientName: clients.find(c => c.id === formData.clientId)?.name || o.clientName,
-            productId: formData.items[0]?.serviceId || '',
-            productName: formData.items[0]?.serviceName || '',
-            status: formData.status,
-            total,
-            entry: formData.entry,
-            entryMethod: formData.entryMethod,
-            deliveryDate: formData.deliveryDate,
-            items: formData.items,
-            installmentsCount: formData.installmentsCount,
-            installmentIntervalDays: formData.installmentIntervalDays,
-            installmentValue: formData.installmentsCount > 1 ? (total - formData.entry) / formData.installmentsCount : 0,
-            firstInstallmentDate: formData.installmentsCount > 1 ? formData.firstInstallmentDate : undefined,
-          };
-        }
-        return o;
-      });
-      saveOrders(updatedOrders);
-    } else {
-      const orderNumber = (orders.length + 1).toString().padStart(4, '0');
-      const newOrder: Order = {
+    // Remover lançamentos financeiros anteriores deste pedido para evitar duplicidade na edição
+    financial = financial.filter(f => !f.description.includes(`Pedido #${orderNumber}`));
+
+    // 1. Registrar Sinal de Entrada (se houver)
+    if (formData.entry > 0) {
+      financial.push({
         id: Math.random().toString(36).substr(2, 9),
-        orderNumber,
-        clientId: formData.clientId,
-        clientName: clients.find(c => c.id === formData.clientId)?.name || 'Cliente Desconhecido',
-        productId: formData.items[0]?.serviceId || '', 
-        productName: formData.items[0]?.serviceName || '', 
-        status: formData.status,
-        total,
-        entry: formData.entry,
-        entryMethod: formData.entryMethod,
+        description: `Sinal Pedido #${orderNumber}: ${newOrder.clientName}`,
+        amount: formData.entry,
+        type: 'INCOME',
         date: new Date().toISOString().split('T')[0],
-        deliveryDate: formData.deliveryDate,
-        items: formData.items,
-        installmentsCount: formData.installmentsCount,
-        installmentIntervalDays: formData.installmentIntervalDays,
-        installmentValue: formData.installmentsCount > 1 ? (total - formData.entry) / formData.installmentsCount : 0,
-        firstInstallmentDate: formData.installmentsCount > 1 ? formData.firstInstallmentDate : undefined,
-        paidInstallmentIndices: []
-      };
-
-      const updatedOrders = [newOrder, ...orders];
-      saveOrders(updatedOrders);
-
-      if (formData.entry > 0) {
-        const storedFinancial = localStorage.getItem('quickprint_financial');
-        const financial: FinancialEntry[] = storedFinancial ? JSON.parse(storedFinancial) : [];
-        const newEntry: FinancialEntry = {
-          id: Math.random().toString(36).substr(2, 9),
-          description: `Sinal Pedido #${orderNumber}: ${newOrder.clientName}`,
-          amount: formData.entry,
-          type: 'INCOME',
-          date: new Date().toISOString().split('T')[0],
-          category: 'Vendas',
-          method: formData.entryMethod,
-          accountId: formData.accountId,
-          status: 'PAID'
-        };
-        localStorage.setItem('quickprint_financial', JSON.stringify([newEntry, ...financial]));
-      }
+        category: 'Vendas',
+        method: formData.entryMethod,
+        accountId: formData.accountId,
+        status: 'PAID'
+      });
     }
 
+    // 2. Registrar Parcelas como PENDENTES
+    if (formData.installmentsCount > 1 && balance > 0) {
+      const instValue = balance / formData.installmentsCount;
+      const startDate = new Date(formData.firstInstallmentDate + 'T12:00:00');
+      
+      for (let i = 0; i < formData.installmentsCount; i++) {
+        const dueDate = new Date(startDate);
+        dueDate.setDate(startDate.getDate() + (i * formData.installmentIntervalDays));
+        
+        financial.push({
+          id: Math.random().toString(36).substr(2, 9),
+          description: `Parc. ${i+1}/${formData.installmentsCount} Pedido #${orderNumber}: ${newOrder.clientName}`,
+          amount: instValue,
+          type: 'INCOME',
+          date: dueDate.toISOString().split('T')[0],
+          category: 'Vendas',
+          method: 'Boleto/Cartão', // Padrão para parcelas
+          accountId: formData.accountId,
+          status: 'PENDING'
+        });
+      }
+    } else if (balance > 0 && formData.installmentsCount <= 1) {
+      // Registrar saldo único como pendente para a data de entrega ou hoje
+      financial.push({
+        id: Math.random().toString(36).substr(2, 9),
+        description: `Saldo Restante Pedido #${orderNumber}: ${newOrder.clientName}`,
+        amount: balance,
+        type: 'INCOME',
+        date: formData.deliveryDate || new Date().toISOString().split('T')[0],
+        category: 'Vendas',
+        method: 'A DEFINIR',
+        accountId: formData.accountId,
+        status: 'PENDING'
+      });
+    }
+
+    localStorage.setItem('quickprint_financial', JSON.stringify(financial));
     handleCloseModal();
   };
 
   const handleOpenDetails = (order: Order) => {
     setViewingOrder(order);
     const balanceValue = order.total - order.entry;
-    setQuickPayment({ amount: balanceValue > 0 ? balanceValue : 0, method: systemPaymentMethods[0]?.name || 'PIX', accountId: accounts[0]?.id || '', date: new Date().toISOString().split('T')[0] });
+    setQuickPayment({ 
+      amount: balanceValue > 0 ? balanceValue : 0, 
+      method: systemPaymentMethods[0]?.name || 'PIX', 
+      accountId: accounts[0]?.id || '', 
+      date: new Date().toISOString().split('T')[0] 
+    });
     setIsDetailsOpen(true);
   };
 
@@ -264,8 +293,19 @@ const Orders: React.FC = () => {
   };
 
   const handleDeleteOrder = (id: string) => {
-    if (confirm('Deseja excluir este pedido permanentemente?')) {
-      saveOrders(orders.filter(o => o.id !== id));
+    if (confirm('Deseja excluir este pedido permanentemente? Os lançamentos financeiros vinculados também serão removidos.')) {
+      const orderToDelete = orders.find(o => o.id === id);
+      const updatedOrders = orders.filter(o => o.id !== id);
+      saveOrders(updatedOrders);
+      
+      if (orderToDelete) {
+        const storedFinancial = localStorage.getItem('quickprint_financial');
+        if (storedFinancial) {
+          const financial: FinancialEntry[] = JSON.parse(storedFinancial);
+          const filteredFinancial = financial.filter(f => !f.description.includes(`Pedido #${orderToDelete.orderNumber}`));
+          localStorage.setItem('quickprint_financial', JSON.stringify(filteredFinancial));
+        }
+      }
     }
   };
 
@@ -288,7 +328,7 @@ const Orders: React.FC = () => {
     const financial: FinancialEntry[] = storedFinancial ? JSON.parse(storedFinancial) : [];
     const newFinEntry: FinancialEntry = {
       id: Math.random().toString(36).substr(2, 9),
-      description: `Pagamento Pedido #${viewingOrder.orderNumber}`,
+      description: `Recebimento Saldo Pedido #${viewingOrder.orderNumber}`,
       amount: quickPayment.amount,
       type: 'INCOME',
       date: quickPayment.date,
@@ -303,35 +343,42 @@ const Orders: React.FC = () => {
     alert('Pagamento registrado com sucesso!');
   };
 
-  const filteredOrders = orders.filter(o => 
-    o.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.orderNumber.includes(searchTerm)
-  );
+  const filteredOrders = orders.filter(o => {
+    const matchesSearch = o.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || o.orderNumber.includes(searchTerm);
+    const matchesPeriod = o.date >= startDate && o.date <= endDate;
+    return matchesSearch && matchesPeriod;
+  });
+
+  const periodTotal = filteredOrders.reduce((acc, o) => acc + o.total, 0);
+  const periodReceivable = filteredOrders.reduce((acc, o) => acc + (o.total - o.entry), 0);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-600 text-white rounded-lg shadow-lg">
-            <ShoppingCart size={24} />
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 space-y-4">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div className="flex-1 w-full lg:max-w-md relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input 
+              type="text" 
+              placeholder="Buscar por cliente ou número de pedido..." 
+              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 bg-gray-50/50 text-sm font-medium"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
           </div>
-          <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-tight">Gestão de Pedidos</h2>
-        </div>
-        <button onClick={() => { setEditingOrderId(null); setIsModalOpen(true); }} className="bg-blue-600 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 hover:bg-blue-700 font-bold shadow-md">
-          <Plus size={20} /> NOVO PEDIDO
-        </button>
-      </div>
-
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Buscar por cliente ou número do pedido..." 
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 bg-gray-50/50"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
+          <div className="flex items-center gap-2">
+            <div className="bg-blue-50 p-2 px-4 rounded-xl border border-blue-100 flex flex-col items-center justify-center min-w-[120px]">
+              <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Vendas</span>
+              <span className="text-sm font-black text-blue-700">R$ {periodTotal.toFixed(2)}</span>
+            </div>
+            <div className="bg-red-50 p-2 px-4 rounded-xl border border-red-100 flex flex-col items-center justify-center min-w-[120px]">
+              <span className="text-[8px] font-black text-red-400 uppercase tracking-widest">A Receber</span>
+              <span className="text-sm font-black text-red-700">R$ {periodReceivable.toFixed(2)}</span>
+            </div>
+            <button onClick={() => { setEditingOrderId(null); setIsModalOpen(true); }} className="bg-blue-600 text-white px-6 py-3.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-100 transition-all active:scale-95">
+              <Plus size={18} /> Novo Pedido
+            </button>
+          </div>
         </div>
       </div>
 
@@ -344,52 +391,62 @@ const Orders: React.FC = () => {
                 <th className="px-6 py-4">Cliente</th>
                 <th className="px-6 py-4">Data</th>
                 <th className="px-6 py-4 text-right">Total</th>
+                <th className="px-6 py-4 text-right">Sinal</th>
+                <th className="px-6 py-4 text-right">A Receber</th>
                 <th className="px-6 py-4 text-center">Status</th>
                 <th className="px-6 py-4 text-center">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredOrders.length > 0 ? filteredOrders.map(order => (
-                <tr key={order.id} className="hover:bg-blue-50/30 transition-colors group">
-                  <td className="px-6 py-4 font-mono text-xs text-gray-400 font-bold uppercase tracking-tighter">#{order.orderNumber}</td>
-                  <td className="px-6 py-4 font-bold text-slate-800 uppercase text-xs tracking-tight">{order.clientName}</td>
-                  <td className="px-6 py-4 text-xs text-gray-500">{new Date(order.date + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-                  <td className="px-6 py-4 text-right font-black text-blue-700">R$ {order.total.toFixed(2)}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-center">
-                      <span className={`text-[9px] font-black px-2 py-0.5 rounded-lg border uppercase ${
-                        order.status === OrderStatus.COMPLETED ? 'bg-green-50 text-green-600 border-green-100' : 'bg-blue-50 text-blue-600 border-blue-100'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-center gap-1">
-                      <button onClick={() => handleOpenDetails(order)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Ver Detalhes">
-                        <Eye size={16} />
-                      </button>
-                      <button onClick={() => generatePDF('OS', order, 'print', false)} className="p-2 text-gray-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all" title="Imprimir OS Produção (Sem Valores)">
-                        <ClipboardList size={16} />
-                      </button>
-                      <button onClick={() => handleEditOrder(order)} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Editar Pedido">
-                        <Pencil size={16} />
-                      </button>
-                      <button onClick={() => generatePDF('PEDIDO', order, 'save')} className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all" title="Baixar Financeiro PDF">
-                        <FileText size={16} />
-                      </button>
-                      <button onClick={() => generatePDF('PEDIDO', order, 'print')} className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all" title="Imprimir Comprovante Venda">
-                        <Printer size={16} />
-                      </button>
-                      <button onClick={() => handleDeleteOrder(order.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Excluir Pedido">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )) : (
+              {filteredOrders.length > 0 ? filteredOrders.map(order => {
+                const balance = order.total - order.entry;
+                const isPaid = balance <= 0.01;
+                return (
+                  <tr key={order.id} className="hover:bg-blue-50/30 transition-colors group">
+                    <td className="px-6 py-4 font-mono text-xs text-gray-400 font-bold uppercase tracking-tighter">#{order.orderNumber}</td>
+                    <td className="px-6 py-4 font-bold text-slate-800 uppercase text-xs tracking-tight">{order.clientName}</td>
+                    <td className="px-6 py-4 text-xs text-gray-500">{new Date(order.date + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+                    <td className="px-6 py-4 text-right font-black text-slate-600">R$ {order.total.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-right font-bold text-green-600">R$ {order.entry.toFixed(2)}</td>
+                    <td className={`px-6 py-4 text-right font-black ${isPaid ? 'text-green-600' : 'text-red-500'}`}>
+                      R$ {balance.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex justify-center">
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-lg border uppercase ${
+                          order.status === OrderStatus.COMPLETED ? 'bg-green-50 text-green-600 border-green-100' : 'bg-blue-50 text-blue-600 border-blue-100'
+                        }`}>
+                          {order.status}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex justify-center gap-1">
+                        <button onClick={() => handleOpenDetails(order)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Ver Detalhes">
+                          <Eye size={16} />
+                        </button>
+                        <button onClick={() => generatePDF('OS', order, 'print', false)} className="p-2 text-gray-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all" title="Imprimir OS Produção">
+                          <ClipboardList size={16} />
+                        </button>
+                        <button onClick={() => handleEditOrder(order)} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Editar Pedido">
+                          <Pencil size={16} />
+                        </button>
+                        <button onClick={() => generatePDF('PEDIDO', order, 'save')} className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all" title="Baixar Financeiro PDF">
+                          <FileText size={16} />
+                        </button>
+                        <button onClick={() => generatePDF('PEDIDO', order, 'print')} className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all" title="Imprimir Comprovante Venda">
+                          <Printer size={16} />
+                        </button>
+                        <button onClick={() => handleDeleteOrder(order.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Excluir Pedido">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic text-sm">Nenhum pedido encontrado.</td>
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-400 italic text-sm font-medium">Nenhum pedido encontrado no período filtrado.</td>
                 </tr>
               )}
             </tbody>
@@ -397,7 +454,7 @@ const Orders: React.FC = () => {
         </div>
       </div>
 
-      {/* New/Edit Order Modal */}
+      {/* Modal Novo/Editar Pedido */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl my-8 overflow-hidden animate-in zoom-in duration-300">
@@ -549,53 +606,62 @@ const Orders: React.FC = () => {
                     </div>
                  </div>
 
+                 {/* Seção de Parcelamento */}
                  {(calculateTotal() - formData.entry) > 0 && (
-                   <div className="pt-4 border-t border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-500">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Parcelas (Saldo)</label>
-                        <input 
-                          type="number" min="1" max="12"
-                          className="w-full px-4 py-3 border border-gray-200 rounded-2xl outline-none bg-white font-bold"
-                          value={formData.installmentsCount}
-                          onChange={e => setFormData({...formData, installmentsCount: parseInt(e.target.value) || 1})}
-                        />
-                      </div>
-                      {formData.installmentsCount > 1 && (
-                        <>
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Intervalo (Dias)</label>
-                            <input 
-                              type="number" step="1"
-                              className="w-full px-4 py-3 border border-gray-200 rounded-2xl outline-none bg-white font-bold"
-                              value={formData.installmentIntervalDays}
-                              onChange={e => setFormData({...formData, installmentIntervalDays: parseInt(e.target.value) || 30})}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">1ª Parcela em</label>
-                            <input 
-                              type="date"
-                              className="w-full px-4 py-3 border border-gray-200 rounded-2xl outline-none bg-white font-bold"
-                              value={formData.firstInstallmentDate}
-                              onChange={e => setFormData({...formData, firstInstallmentDate: e.target.value})}
-                            />
-                          </div>
-                        </>
-                      )}
+                   <div className="pt-6 border-t border-gray-200 space-y-4 animate-in fade-in duration-300">
+                     <div className="flex items-center gap-2">
+                       <CreditCard size={16} className="text-blue-600" />
+                       <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Configuração de Parcelamento do Saldo</h4>
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Quantidade de Parcelas</label>
+                          <input 
+                            type="number" min="1" max="12"
+                            className="w-full px-4 py-3 border border-gray-200 rounded-2xl outline-none bg-white font-bold"
+                            value={formData.installmentsCount}
+                            onChange={e => setFormData({...formData, installmentsCount: parseInt(e.target.value) || 1})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Intervalo (Dias)</label>
+                          <input 
+                            type="number" step="1"
+                            className="w-full px-4 py-3 border border-gray-200 rounded-2xl outline-none bg-white font-bold"
+                            value={formData.installmentIntervalDays}
+                            onChange={e => setFormData({...formData, installmentIntervalDays: parseInt(e.target.value) || 30})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Primeiro Vencimento</label>
+                          <input 
+                            type="date"
+                            className="w-full px-4 py-3 border border-gray-200 rounded-2xl outline-none bg-white font-bold"
+                            value={formData.firstInstallmentDate}
+                            onChange={e => setFormData({...formData, firstInstallmentDate: e.target.value})}
+                          />
+                        </div>
+                     </div>
+                     <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-between">
+                        <span className="text-[10px] font-black text-blue-600 uppercase">Resumo:</span>
+                        <p className="text-sm font-black text-blue-800">
+                          {formData.installmentsCount} parcelas de <span className="text-lg">R$ {((calculateTotal() - formData.entry) / formData.installmentsCount).toFixed(2)}</span>
+                        </p>
+                     </div>
                    </div>
                  )}
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={handleCloseModal} className="flex-1 py-4 border border-gray-200 rounded-2xl font-black text-[10px] uppercase tracking-widest text-gray-500 hover:bg-slate-50">Cancelar</button>
-                <button type="submit" className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-100 hover:bg-blue-700">Salvar Pedido</button>
+                <button type="button" onClick={handleCloseModal} className="flex-1 py-4 border border-gray-200 rounded-2xl font-black text-[10px] uppercase tracking-widest text-gray-500 hover:bg-slate-50 transition-colors">Cancelar</button>
+                <button type="submit" className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all">Salvar Pedido</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Details Modal */}
+      {/* Modal de Detalhes do Pedido */}
       {isDetailsOpen && viewingOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in duration-300">
@@ -612,16 +678,16 @@ const Orders: React.FC = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => generatePDF('OS', viewingOrder, 'print', false)} className="p-3 bg-slate-100 text-slate-700 rounded-2xl hover:bg-slate-200 transition-colors border border-slate-200" title="Imprimir OS Produção (Sem Valores)">
+                <button onClick={() => generatePDF('OS', viewingOrder, 'print', false)} className="p-3 bg-slate-100 text-slate-700 rounded-2xl hover:bg-slate-200 transition-colors border border-slate-200" title="Imprimir OS Produção">
                   <ClipboardList size={20} />
                 </button>
-                <button onClick={() => generatePDF('PEDIDO', viewingOrder, 'print')} className="p-3 bg-orange-50 text-orange-600 rounded-2xl hover:bg-orange-100 transition-colors border border-orange-100" title="Imprimir Pedido Financeiro">
+                <button onClick={() => generatePDF('PEDIDO', viewingOrder, 'print')} className="p-3 bg-orange-50 text-orange-600 rounded-2xl hover:bg-orange-100 transition-colors border border-orange-100" title="Imprimir Pedido">
                   <Printer size={20} />
                 </button>
-                <button onClick={() => generatePDF('PEDIDO', viewingOrder, 'save')} className="p-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-100 transition-colors border border-blue-100" title="Baixar Pedido PDF">
+                <button onClick={() => generatePDF('PEDIDO', viewingOrder, 'save')} className="p-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-100 transition-colors border border-blue-100" title="Baixar PDF">
                   <FileText size={20} />
                 </button>
-                <button onClick={sendWhatsApp} className="p-3 bg-green-50 text-green-600 rounded-2xl hover:bg-green-100 transition-colors border border-green-100" title="Avisar no WhatsApp">
+                <button onClick={sendWhatsApp} className="p-3 bg-green-50 text-green-600 rounded-2xl hover:bg-green-100 transition-colors border border-green-100" title="WhatsApp">
                   <MessageSquare size={20} />
                 </button>
                 <button onClick={() => setIsDetailsOpen(false)} className="p-3 text-slate-400 hover:bg-white rounded-2xl transition-colors border border-transparent hover:border-slate-100">
@@ -642,7 +708,6 @@ const Orders: React.FC = () => {
                   </div>
                </div>
 
-               {/* Itens do Pedido no Detalhe */}
                <div className="space-y-3">
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Itens do Pedido</p>
                   <div className="bg-slate-50 rounded-2xl border border-gray-100 overflow-hidden">
@@ -651,7 +716,7 @@ const Orders: React.FC = () => {
                         <tr>
                           <th className="px-4 py-2">Descrição</th>
                           <th className="px-4 py-2 text-center">Qtd</th>
-                          <th className="px-4 py-2 text-right">Preço Unit.</th>
+                          <th className="px-4 py-2 text-right">Preço</th>
                           <th className="px-4 py-2 text-right">Subtotal</th>
                         </tr>
                       </thead>
@@ -671,7 +736,7 @@ const Orders: React.FC = () => {
                
                <div className="p-6 bg-slate-50 rounded-3xl border border-gray-100 grid grid-cols-2 gap-6 shadow-inner">
                   <div>
-                    <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Valor Amortizado</span>
+                    <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Valor Pago</span>
                     <p className="text-xl font-black text-green-600 mt-1">R$ {viewingOrder.entry.toFixed(2)}</p>
                   </div>
                   <div className="text-right">
@@ -682,35 +747,23 @@ const Orders: React.FC = () => {
                   </div>
                </div>
 
-               <div className="grid grid-cols-2 gap-4">
-                 <button onClick={() => generatePDF('OS', viewingOrder, 'print', false)} className="flex-1 py-3 px-4 bg-slate-800 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg flex items-center justify-center gap-2">
-                    <ClipboardList size={16} /> IMPRIMIR OS PRODUÇÃO
-                 </button>
-                 <button onClick={() => generatePDF('PEDIDO', viewingOrder, 'print')} className="flex-1 py-3 px-4 bg-orange-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-700 transition-all shadow-lg flex items-center justify-center gap-2">
-                    <Printer size={16} /> IMPRIMIR COMPROVANTE
-                 </button>
-               </div>
-
                {(viewingOrder.total - viewingOrder.entry) > 0.01 && (
                  <div className="space-y-5 pt-4 border-t border-gray-100 animate-in slide-in-from-bottom-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <DollarSign size={16} className="text-blue-600" />
-                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Registrar Pagamento de Saldo</p>
-                    </div>
+                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Registrar Pagamento de Saldo</p>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-[9px] font-black text-gray-400 uppercase">Quantia Recebida</label>
                         <input 
                           type="number" step="0.01"
-                          className="w-full px-4 py-3.5 border border-gray-200 rounded-2xl outline-none font-black text-slate-700 focus:ring-4 focus:ring-blue-50 bg-slate-50/50"
+                          className="w-full px-4 py-3.5 border border-gray-200 rounded-2xl outline-none font-black text-slate-700 bg-slate-50/50 focus:ring-4 focus:ring-blue-50"
                           value={quickPayment.amount}
                           onChange={e => setQuickPayment({...quickPayment, amount: parseFloat(e.target.value) || 0})}
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[9px] font-black text-gray-400 uppercase">Meio de Pagamento</label>
+                        <label className="text-[9px] font-black text-gray-400 uppercase">Meio</label>
                         <select 
-                          className="w-full px-4 py-3.5 border border-gray-200 rounded-2xl outline-none text-xs font-black bg-white focus:ring-4 focus:ring-blue-50"
+                          className="w-full px-4 py-3.5 border border-gray-200 rounded-2xl outline-none text-xs font-black bg-white"
                           value={quickPayment.method}
                           onChange={e => setQuickPayment({...quickPayment, method: e.target.value})}
                         >
@@ -720,9 +773,9 @@ const Orders: React.FC = () => {
                     </div>
                     <button 
                       onClick={handleRegisterPayment}
-                      className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 active:scale-95 flex items-center justify-center gap-3"
+                      className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-100"
                     >
-                      <CheckIcon size={18} /> Confirmar Recebimento e Atualizar
+                      Confirmar Pagamento
                     </button>
                  </div>
                )}
