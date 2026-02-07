@@ -65,18 +65,24 @@ const Orders: React.FC = () => {
       if (storedOrders) setOrders(JSON.parse(storedOrders));
       
       const storedClients = localStorage.getItem('quickprint_clients');
-      if (storedClients) setClients(JSON.parse(storedClients));
+      if (storedClients) {
+        const parsed: Client[] = JSON.parse(storedClients);
+        setClients(parsed.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' })));
+      }
       
       const storedProducts = localStorage.getItem('quickprint_products');
-      if (storedProducts) setProducts(JSON.parse(storedProducts));
+      if (storedProducts) {
+        const parsed: Product[] = JSON.parse(storedProducts);
+        setProducts(parsed.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' })));
+      }
       
       const storedSettings = localStorage.getItem('quickprint_settings');
       if (storedSettings) {
         const settings: SystemSettings = JSON.parse(storedSettings);
         const availableAccounts = settings.accounts || [];
-        setAccounts(availableAccounts);
+        setAccounts(availableAccounts.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
         const methods = settings.paymentMethods || [{ id: 'pix', name: 'PIX' }];
-        setSystemPaymentMethods(methods);
+        setSystemPaymentMethods(methods.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
         
         if (!editingOrderId) {
           setFormData(prev => ({ 

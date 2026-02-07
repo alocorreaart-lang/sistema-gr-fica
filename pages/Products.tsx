@@ -12,7 +12,10 @@ const Products: React.FC = () => {
   useEffect(() => {
     const stored = localStorage.getItem('quickprint_products');
     if (stored) {
-      setProducts(JSON.parse(stored));
+      const parsed: Product[] = JSON.parse(stored);
+      // Ensure it's sorted even on load
+      const sorted = parsed.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' }));
+      setProducts(sorted);
     } else {
       const initial = [
         { id: '1', name: 'Cartão de Visita 4x4', basePrice: 25.00, salePrice: 45.00, margin: 80, size: '9x5cm', material: 'Couché 300g', description: 'Verniz Total Frente' },
@@ -23,8 +26,8 @@ const Products: React.FC = () => {
   }, []);
 
   const saveProducts = (newProducts: Product[]) => {
-    // Ordenação alfabética antes de salvar
-    const sorted = [...newProducts].sort((a, b) => a.name.localeCompare(b.name));
+    // Ordenação alfabética robusta antes de salvar
+    const sorted = [...newProducts].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' }));
     setProducts(sorted);
     localStorage.setItem('quickprint_products', JSON.stringify(sorted));
   };
@@ -91,7 +94,7 @@ const Products: React.FC = () => {
     if (editingProduct) {
       saveProducts(products.map(p => p.id === editingProduct.id ? productData : p));
     } else {
-      saveProducts([productData, ...products]);
+      saveProducts([...products, productData]);
     }
     setIsModalOpen(false);
   };

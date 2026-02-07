@@ -21,7 +21,10 @@ const Clients: React.FC = () => {
   useEffect(() => {
     const stored = localStorage.getItem('quickprint_clients');
     if (stored) {
-      setClients(JSON.parse(stored));
+      const parsed: Client[] = JSON.parse(stored);
+      // Ensure it's sorted even on load
+      const sorted = parsed.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' }));
+      setClients(sorted);
     } else {
       const initial = [
         { id: '1', name: 'Gráfica Digital LTDA', email: 'contato@graficadigital.com', phone: '(11) 99999-9999', document: '12.345.678/0001-00', responsible: 'João Silva', city: 'São Paulo', address: 'Rua das Artes', addressNumber: '150' },
@@ -32,8 +35,8 @@ const Clients: React.FC = () => {
   }, []);
 
   const saveClients = (newClients: Client[]) => {
-    // Ordenação alfabética antes de salvar
-    const sorted = [...newClients].sort((a, b) => a.name.localeCompare(b.name));
+    // Ordenação alfabética robusta antes de salvar
+    const sorted = [...newClients].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' }));
     setClients(sorted);
     localStorage.setItem('quickprint_clients', JSON.stringify(sorted));
   };
@@ -71,7 +74,7 @@ const Clients: React.FC = () => {
       saveClients(clients.map(c => c.id === editingClient.id ? { ...c, ...formData } : c));
     } else {
       const newClient: Client = { id: Math.random().toString(36).substr(2, 9), ...formData };
-      saveClients([newClient, ...clients]);
+      saveClients([...clients, newClient]);
     }
     setIsModalOpen(false);
   };

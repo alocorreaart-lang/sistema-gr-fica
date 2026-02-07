@@ -15,7 +15,10 @@ const Supplies: React.FC = () => {
   useEffect(() => {
     const stored = localStorage.getItem('quickprint_supplies');
     if (stored) {
-      setSupplies(JSON.parse(stored));
+      const parsed: Supply[] = JSON.parse(stored);
+      // Ensure it's sorted even on load
+      const sorted = parsed.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' }));
+      setSupplies(sorted);
     } else {
       const initial: Supply[] = [
         { id: '1', name: 'Papel A4 Sulfite 75g', description: 'Papel sulfite padrão para escritório', category: 'Papel', unit: 'Pacote', stock: 10, minStock: 5, costPrice: 25.90, provider: 'Papelaria Central', providerPhone: '(11) 98888-7777', purchaseDate: '2025-01-15' },
@@ -26,8 +29,8 @@ const Supplies: React.FC = () => {
   }, []);
 
   const saveSupplies = (newSupplies: Supply[]) => {
-    // Ordenação alfabética antes de salvar
-    const sorted = [...newSupplies].sort((a, b) => a.name.localeCompare(b.name));
+    // Ordenação alfabética robusta antes de salvar
+    const sorted = [...newSupplies].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' }));
     setSupplies(sorted);
     localStorage.setItem('quickprint_supplies', JSON.stringify(sorted));
   };
@@ -84,7 +87,7 @@ const Supplies: React.FC = () => {
     if (editingSupply) {
       saveSupplies(supplies.map(s => s.id === editingSupply.id ? supplyData : s));
     } else {
-      saveSupplies([supplyData, ...supplies]);
+      saveSupplies([...supplies, supplyData]);
     }
     setIsModalOpen(false);
   };
@@ -286,7 +289,7 @@ const Supplies: React.FC = () => {
                   <input 
                     type="number" 
                     placeholder="0"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 text-gray-600" 
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 text-gray-600" 
                     value={formData.minStock || ''} 
                     onChange={e => setFormData({...formData, minStock: parseInt(e.target.value) || 0})} 
                   />
