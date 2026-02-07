@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Package, Search, Plus, X, Trash2, Edit, Calculator, Ruler, Layers } from 'lucide-react';
+import { Package, Search, Plus, X, Trash2, Edit, Calculator, Ruler, Layers, Save } from 'lucide-react';
 import { Product } from '../types';
 
 const Products: React.FC = () => {
@@ -13,32 +13,44 @@ const Products: React.FC = () => {
     const stored = localStorage.getItem('quickprint_products');
     if (stored) {
       const parsed: Product[] = JSON.parse(stored);
-      // Garante ordenação correta no carregamento
       const sorted = parsed.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' }));
       setProducts(sorted);
     } else {
-      const initial = [
-        { id: '1', name: 'Cartão de Visita 4x4', basePrice: 25.00, salePrice: 45.00, margin: 80, size: '9x5cm', material: 'Couché 300g', description: 'Verniz Total Frente' },
-        { id: '2', name: 'Panfleto A5', basePrice: 80.00, salePrice: 120.00, margin: 50, size: '15x21cm', material: 'Papel 90g', description: '1000 unidades, Colorido' },
+      const initial: Product[] = [
+        { id: '1', name: 'Impressão Colorida A4', category: 'Impressão', basePrice: 0.50, salePrice: 2.50, margin: 400, unit: 'Unidade', size: 'A4', material: 'Papel 75g', description: 'Impressão laser colorida papel 75g' },
+        { id: '2', name: 'Banner Lona 440g', category: 'Comunicação Visual', basePrice: 25.00, salePrice: 65.00, margin: 160, unit: 'M²', size: 'Variável', material: 'Lona 440g', description: 'Banner com acabamento em madeira e cordão' },
       ];
       saveProducts(initial);
     }
   }, []);
 
   const saveProducts = (newProducts: Product[]) => {
-    // Ordenação alfabética robusta antes de salvar em localStorage
     const sorted = [...newProducts].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' }));
     setProducts(sorted);
     localStorage.setItem('quickprint_products', JSON.stringify(sorted));
   };
 
   const [formData, setFormData] = useState({
-    name: '', basePrice: '', salePrice: '', margin: '', size: '', material: '', description: ''
+    name: '',
+    category: 'Impressão',
+    basePrice: '',
+    salePrice: '',
+    margin: '',
+    unit: 'Unidade',
+    description: ''
   });
 
   const handleOpenCreateModal = () => {
     setEditingProduct(null);
-    setFormData({ name: '', basePrice: '', salePrice: '', margin: '', size: '', material: '', description: '' });
+    setFormData({ 
+      name: '', 
+      category: 'Impressão', 
+      basePrice: '0.00', 
+      salePrice: '0', 
+      margin: '0', 
+      unit: 'Unidade', 
+      description: '' 
+    });
     setIsModalOpen(true);
   };
 
@@ -46,11 +58,11 @@ const Products: React.FC = () => {
     setEditingProduct(p);
     setFormData({
       name: p.name,
-      basePrice: p.basePrice.toString(),
-      salePrice: p.salePrice.toString(),
-      margin: p.margin.toString(),
-      size: p.size,
-      material: p.material,
+      category: p.category || 'Impressão',
+      basePrice: p.basePrice.toFixed(2),
+      salePrice: p.salePrice.toFixed(2),
+      margin: p.margin.toFixed(0),
+      unit: p.unit || 'Unidade',
       description: p.description
     });
     setIsModalOpen(true);
@@ -58,21 +70,21 @@ const Products: React.FC = () => {
 
   const handleCalculation = (field: 'basePrice' | 'salePrice' | 'margin', value: string) => {
     const numValue = parseFloat(value) || 0;
-    const base = field === 'basePrice' ? numValue : parseFloat(formData.basePrice) || 0;
-    const sale = field === 'salePrice' ? numValue : parseFloat(formData.salePrice) || 0;
-    const margin = field === 'margin' ? numValue : parseFloat(formData.margin) || 0;
+    let base = field === 'basePrice' ? numValue : parseFloat(formData.basePrice) || 0;
+    let sale = field === 'salePrice' ? numValue : parseFloat(formData.salePrice) || 0;
+    let margin = field === 'margin' ? numValue : parseFloat(formData.margin) || 0;
 
     let updatedData = { ...formData, [field]: value };
 
     if (field === 'basePrice' || field === 'margin') {
-      if (base > 0 && margin > 0) {
+      if (base > 0) {
         const calculatedSale = base + (base * (margin / 100));
         updatedData.salePrice = calculatedSale.toFixed(2);
       }
     } else if (field === 'salePrice') {
       if (base > 0 && sale > 0) {
         const calculatedMargin = ((sale - base) / base) * 100;
-        updatedData.margin = calculatedMargin.toFixed(2);
+        updatedData.margin = calculatedMargin.toFixed(0);
       }
     }
     setFormData(updatedData);
@@ -83,11 +95,13 @@ const Products: React.FC = () => {
     const productData: Product = {
       id: editingProduct ? editingProduct.id : Math.random().toString(36).substr(2, 9),
       name: formData.name,
+      category: formData.category,
       basePrice: parseFloat(formData.basePrice) || 0,
       salePrice: parseFloat(formData.salePrice) || 0,
       margin: parseFloat(formData.margin) || 0,
-      size: formData.size,
-      material: formData.material,
+      unit: formData.unit,
+      size: '',
+      material: '',
       description: formData.description
     };
 
@@ -110,13 +124,13 @@ const Products: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-indigo-600 text-white rounded-lg shadow-lg"><Package size={24} /></div>
           <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-tight">Produtos & Serviços</h2>
         </div>
-        <button onClick={handleOpenCreateModal} className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 hover:bg-indigo-700 font-bold shadow-md">
+        <button onClick={handleOpenCreateModal} className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 hover:bg-indigo-700 font-bold shadow-md active:scale-95 transition-all">
           <Plus size={20} /> NOVO PRODUTO
         </button>
       </div>
@@ -138,8 +152,9 @@ const Products: React.FC = () => {
         <table className="w-full text-left">
           <thead className="bg-gray-50 border-b border-gray-200 text-[10px] font-black text-gray-500 uppercase tracking-widest">
             <tr>
-              <th className="px-6 py-4">Produto</th>
-              <th className="px-6 py-4">Custo</th>
+              <th className="px-6 py-4">Produto / Serviço</th>
+              <th className="px-6 py-4">Categoria</th>
+              <th className="px-6 py-4 text-right">Preço Unitário</th>
               <th className="px-6 py-4 text-center">Ações</th>
             </tr>
           </thead>
@@ -147,9 +162,17 @@ const Products: React.FC = () => {
             {filteredProducts.map(product => (
               <tr key={product.id} className="hover:bg-indigo-50/30 transition-colors">
                 <td className="px-6 py-4">
-                  <span className="font-bold text-gray-800 uppercase text-xs">{product.name}</span>
+                  <div className="flex flex-col">
+                    <span className="font-bold text-gray-800 uppercase text-xs">{product.name}</span>
+                    <span className="text-[10px] text-gray-400 font-medium">{product.unit}</span>
+                  </div>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-500 font-black">R$ {product.salePrice.toFixed(2)}</td>
+                <td className="px-6 py-4">
+                  <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-[9px] font-black uppercase tracking-tighter">
+                    {product.category || 'Geral'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-right font-black text-indigo-700">R$ {product.salePrice.toFixed(2)}</td>
                 <td className="px-6 py-4 text-center">
                   <div className="flex justify-center gap-1">
                     <button onClick={() => handleOpenEditModal(product)} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Edit size={16} /></button>
@@ -158,31 +181,155 @@ const Products: React.FC = () => {
                 </td>
               </tr>
             ))}
+            {filteredProducts.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-6 py-12 text-center text-gray-400 italic">Nenhum produto cadastrado.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in duration-200">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-indigo-600 text-white">
-              <h3 className="text-xl font-bold uppercase tracking-tight">{editingProduct ? 'Editar Produto' : 'Novo Produto'}</h3>
-              <button onClick={() => setIsModalOpen(false)}><X size={24} /></button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl overflow-hidden animate-in zoom-in duration-200">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
+              <h3 className="text-2xl font-semibold text-slate-800">
+                {editingProduct ? 'Editar Serviço' : 'Novo Serviço'}
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={24} />
+              </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="col-span-2">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nome do Produto / Serviço *</label>
-                  <input required type="text" className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-50 font-bold uppercase" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+            
+            <form onSubmit={handleSubmit} className="p-8 space-y-6 bg-white">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                
+                {/* Nome do Serviço */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">Nome do Serviço *</label>
+                  <input 
+                    required 
+                    type="text" 
+                    placeholder="Ex: Impressão Colorida A4"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:border-slate-500 transition-colors placeholder:text-gray-300" 
+                    value={formData.name} 
+                    onChange={e => setFormData({...formData, name: e.target.value})} 
+                  />
                 </div>
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Valor de Venda (R$)</label>
-                  <input type="number" step="0.01" className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-50 font-black text-indigo-700 bg-indigo-50/30" value={formData.salePrice} onChange={e => setFormData({...formData, salePrice: e.target.value})} />
+
+                {/* Categoria */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">Categoria *</label>
+                  <div className="relative">
+                    <select 
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none bg-white focus:border-slate-500 transition-colors appearance-none"
+                      value={formData.category}
+                      onChange={e => setFormData({...formData, category: e.target.value})}
+                    >
+                      <option value="Impressão">Impressão</option>
+                      <option value="Acabamento">Acabamento</option>
+                      <option value="Design">Design</option>
+                      <option value="Comunicação Visual">Comunicação Visual</option>
+                      <option value="Outros">Outros</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Custo */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">Custo (R$)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:border-slate-500 transition-colors" 
+                    value={formData.basePrice} 
+                    onChange={e => handleCalculation('basePrice', e.target.value)} 
+                  />
+                </div>
+
+                {/* Margem de Lucro */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">Margem de Lucro (%)</label>
+                  <input 
+                    type="number" 
+                    step="1"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:border-slate-500 transition-colors" 
+                    value={formData.margin} 
+                    onChange={e => handleCalculation('margin', e.target.value)} 
+                  />
+                </div>
+
+                {/* Preço Unitário */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">Preço Unitário (R$) *</label>
+                  <input 
+                    required
+                    type="number" 
+                    step="0.01"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:border-slate-500 transition-colors" 
+                    value={formData.salePrice} 
+                    onChange={e => handleCalculation('salePrice', e.target.value)} 
+                  />
+                </div>
+
+                {/* Unidade de Medida */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">Unidade de Medida</label>
+                  <div className="relative">
+                    <select 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none bg-white focus:border-slate-500 transition-colors appearance-none"
+                      value={formData.unit}
+                      onChange={e => setFormData({...formData, unit: e.target.value})}
+                    >
+                      <option value="Unidade">Unidade</option>
+                      <option value="Cento">Cento</option>
+                      <option value="Milheiro">Milheiro</option>
+                      <option value="M²">M²</option>
+                      <option value="M. Linear">M. Linear</option>
+                      <option value="Bloco">Bloco</option>
+                      <option value="Hora">Hora</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Descrição */}
+                <div className="col-span-1 md:col-span-2 space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">Descrição</label>
+                  <textarea 
+                    rows={4}
+                    placeholder="Descreva os detalhes do serviço"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:border-slate-500 transition-colors resize-none placeholder:text-gray-400" 
+                    value={formData.description} 
+                    onChange={e => setFormData({...formData, description: e.target.value})} 
+                  />
+                </div>
+
               </div>
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 border border-gray-200 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-gray-500 hover:bg-slate-50">Cancelar</button>
-                <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-indigo-700 active:scale-95 transition-all">Salvar Produto</button>
+
+              {/* Ações */}
+              <div className="flex justify-end gap-4 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setIsModalOpen(false)} 
+                  className="px-10 py-2.5 border border-gray-300 text-slate-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-10 py-2.5 bg-[#82cf9e] text-white rounded-lg font-medium shadow-md hover:bg-[#6fb98d] transition-all flex items-center gap-2"
+                >
+                  <Save size={18} />
+                  Salvar
+                </button>
               </div>
             </form>
           </div>

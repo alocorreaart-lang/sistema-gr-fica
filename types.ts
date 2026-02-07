@@ -24,9 +24,11 @@ export interface Client {
 export interface Product {
   id: string;
   name: string;
+  category?: string;
   basePrice: number;
   salePrice: number;
   margin: number;
+  unit?: string;
   size: string;
   material: string;
   description: string;
