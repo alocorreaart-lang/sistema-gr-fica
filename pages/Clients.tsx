@@ -22,7 +22,7 @@ const Clients: React.FC = () => {
     const stored = localStorage.getItem('quickprint_clients');
     if (stored) {
       const parsed: Client[] = JSON.parse(stored);
-      // Ensure it's sorted even on load
+      // Garante ordenação mesmo se o storage estiver bagunçado
       const sorted = parsed.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' }));
       setClients(sorted);
     } else {
@@ -111,7 +111,7 @@ const Clients: React.FC = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input 
             type="text" 
-            placeholder="Buscar por nome, responsável, e-mail ou documento..." 
+            placeholder="Buscar por nome..." 
             className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500/20 bg-gray-50/50"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
@@ -132,41 +132,17 @@ const Clients: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredClients.length > 0 ? filteredClients.map(client => (
+              {filteredClients.map(client => (
                 <tr key={client.id} className="hover:bg-green-50/30 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="font-bold text-gray-800">{client.name}</span>
-                      {client.responsible && (
-                        <div className="flex items-center gap-1 text-[10px] text-blue-600 font-black uppercase tracking-tight">
-                          <UserCheck size={10} /> {client.responsible}
-                        </div>
-                      )}
+                      <span className="font-bold text-gray-800 uppercase text-xs">{client.name}</span>
+                      {client.responsible && <span className="text-[10px] text-blue-600 font-bold uppercase">{client.responsible}</span>}
                     </div>
                   </td>
-                  <td className="px-6 py-4 font-mono text-xs text-gray-500">{client.document}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
-                        <Phone size={12} className="text-gray-400" />
-                        {formatPhone(client.phone)}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
-                        <Mail size={12} />
-                        {client.email}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-0.5 text-xs text-gray-500">
-                      <span className="font-bold text-slate-700">{client.city || '-'}</span>
-                      {client.address && (
-                        <div className="flex items-center gap-1 text-[10px] text-gray-400 italic">
-                          <MapPin size={10} /> {client.address}, {client.addressNumber}
-                        </div>
-                      )}
-                    </div>
-                  </td>
+                  <td className="px-6 py-4 font-mono text-xs text-gray-400">{client.document}</td>
+                  <td className="px-6 py-4 text-xs text-gray-600">{formatPhone(client.phone)}</td>
+                  <td className="px-6 py-4 text-xs text-gray-600">{client.city}</td>
                   <td className="px-6 py-4">
                     <div className="flex justify-center gap-1">
                       <button onClick={() => handleOpenEditModal(client)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={16} /></button>
@@ -174,11 +150,7 @@ const Clients: React.FC = () => {
                     </div>
                   </td>
                 </tr>
-              )) : (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic text-sm">Nenhum cliente encontrado.</td>
-                </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
@@ -198,7 +170,7 @@ const Clients: React.FC = () => {
                   <input required type="text" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                 </div>
                 <div className="col-span-1">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Responsável (Contato Direto)</label>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Responsável</label>
                   <input type="text" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 outline-none" value={formData.responsible} onChange={e => setFormData({...formData, responsible: e.target.value})} />
                 </div>
                 <div className="col-span-1">
@@ -216,16 +188,6 @@ const Clients: React.FC = () => {
                 <div className="col-span-1">
                   <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Cidade</label>
                   <input type="text" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 outline-none" value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} />
-                </div>
-                <div className="col-span-1 md:col-span-1 flex gap-4">
-                    <div className="flex-1">
-                        <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Endereço (Rua/Av)</label>
-                        <input type="text" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 outline-none" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
-                    </div>
-                </div>
-                <div className="col-span-1 md:col-span-1">
-                    <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Número</label>
-                    <input type="text" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 outline-none" value={formData.addressNumber} onChange={e => setFormData({...formData, addressNumber: e.target.value})} />
                 </div>
               </div>
               <div className="flex justify-end gap-4 pt-4 border-t border-gray-50">

@@ -13,7 +13,7 @@ const Products: React.FC = () => {
     const stored = localStorage.getItem('quickprint_products');
     if (stored) {
       const parsed: Product[] = JSON.parse(stored);
-      // Ensure it's sorted even on load
+      // Garante ordenação correta no carregamento
       const sorted = parsed.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' }));
       setProducts(sorted);
     } else {
@@ -26,7 +26,7 @@ const Products: React.FC = () => {
   }, []);
 
   const saveProducts = (newProducts: Product[]) => {
-    // Ordenação alfabética robusta antes de salvar
+    // Ordenação alfabética robusta antes de salvar em localStorage
     const sorted = [...newProducts].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' }));
     setProducts(sorted);
     localStorage.setItem('quickprint_products', JSON.stringify(sorted));
@@ -140,18 +140,16 @@ const Products: React.FC = () => {
             <tr>
               <th className="px-6 py-4">Produto</th>
               <th className="px-6 py-4">Custo</th>
-              <th className="px-6 py-4">Margem</th>
-              <th className="px-6 py-4">Valor Unitário</th>
               <th className="px-6 py-4 text-center">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {filteredProducts.map(product => (
               <tr key={product.id} className="hover:bg-indigo-50/30 transition-colors">
-                <td className="px-6 py-4"><span className="font-bold text-gray-800 uppercase">{product.name}</span></td>
-                <td className="px-6 py-4 text-sm text-gray-500">R$ {product.basePrice.toFixed(2)}</td>
-                <td className="px-6 py-4"><span className="px-2 py-1 bg-green-50 text-green-700 rounded text-[10px] font-bold">{product.margin.toFixed(1)}%</span></td>
-                <td className="px-6 py-4 font-black text-indigo-700 text-lg">R$ {product.salePrice.toFixed(2)}</td>
+                <td className="px-6 py-4">
+                  <span className="font-bold text-gray-800 uppercase text-xs">{product.name}</span>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500 font-black">R$ {product.salePrice.toFixed(2)}</td>
                 <td className="px-6 py-4 text-center">
                   <div className="flex justify-center gap-1">
                     <button onClick={() => handleOpenEditModal(product)} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Edit size={16} /></button>
@@ -160,11 +158,6 @@ const Products: React.FC = () => {
                 </td>
               </tr>
             ))}
-            {filteredProducts.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">Nenhum produto cadastrado.</td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
@@ -183,20 +176,12 @@ const Products: React.FC = () => {
                   <input required type="text" className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-50 font-bold uppercase" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Custo Base (R$)</label>
-                  <input type="number" step="0.01" className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-50 font-bold" value={formData.basePrice} onChange={e => handleCalculation('basePrice', e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Margem (%)</label>
-                  <input type="number" step="0.1" className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-50 font-bold" value={formData.margin} onChange={e => handleCalculation('margin', e.target.value)} />
-                </div>
-                <div className="col-span-2">
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Valor de Venda (R$)</label>
-                  <input type="number" step="0.01" className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-50 font-black text-indigo-700 bg-indigo-50/30" value={formData.salePrice} onChange={e => handleCalculation('salePrice', e.target.value)} />
+                  <input type="number" step="0.01" className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-50 font-black text-indigo-700 bg-indigo-50/30" value={formData.salePrice} onChange={e => setFormData({...formData, salePrice: e.target.value})} />
                 </div>
               </div>
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 border border-gray-200 rounded-xl font-bold text-[10px] uppercase tracking-widest text-gray-500 hover:bg-slate-50">Cancelar</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 border border-gray-200 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-gray-500 hover:bg-slate-50">Cancelar</button>
                 <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-indigo-700 active:scale-95 transition-all">Salvar Produto</button>
               </div>
             </form>
