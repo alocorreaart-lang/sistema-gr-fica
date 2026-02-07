@@ -25,6 +25,7 @@ const Financial: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [systemPaymentMethods, setSystemPaymentMethods] = useState<PaymentMethod[]>([]);
 
+  // Fix: Added missing formData state to manage input fields in the financial entry modal
   const [formData, setFormData] = useState({
     id: '',
     description: '',
@@ -51,18 +52,26 @@ const Financial: React.FC = () => {
     const storedSettings = localStorage.getItem('quickprint_settings');
     if (storedSettings) {
       const settings: SystemSettings = JSON.parse(storedSettings);
-      setAccounts(settings.accounts || []);
-      setSystemPaymentMethods(settings.paymentMethods || []);
+      // Garantir ordenação ao carregar
+      const sortedAccounts = [...(settings.accounts || [])].sort((a, b) => a.name.localeCompare(b.name));
+      const sortedMethods = [...(settings.paymentMethods || [])].sort((a, b) => a.name.localeCompare(b.name));
+      setAccounts(sortedAccounts);
+      setSystemPaymentMethods(sortedMethods);
     }
   };
 
   const saveSettings = (newAccounts: Account[], newMethods: PaymentMethod[]) => {
     const stored = localStorage.getItem('quickprint_settings');
     const settings: SystemSettings = stored ? JSON.parse(stored) : { companyName: 'QuickPrint' };
-    const updated = { ...settings, accounts: newAccounts, paymentMethods: newMethods };
+    
+    // Ordenação alfabética antes de salvar
+    const sortedAccounts = [...newAccounts].sort((a, b) => a.name.localeCompare(b.name));
+    const sortedMethods = [...newMethods].sort((a, b) => a.name.localeCompare(b.name));
+    
+    const updated = { ...settings, accounts: sortedAccounts, paymentMethods: sortedMethods };
     localStorage.setItem('quickprint_settings', JSON.stringify(updated));
-    setAccounts(newAccounts);
-    setSystemPaymentMethods(newMethods);
+    setAccounts(sortedAccounts);
+    setSystemPaymentMethods(sortedMethods);
   };
 
   const saveEntries = (newEntries: FinancialEntry[]) => {

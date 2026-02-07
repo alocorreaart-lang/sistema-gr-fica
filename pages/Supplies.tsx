@@ -21,14 +21,15 @@ const Supplies: React.FC = () => {
         { id: '1', name: 'Papel A4 Sulfite 75g', description: 'Papel sulfite padrão para escritório', category: 'Papel', unit: 'Pacote', stock: 10, minStock: 5, costPrice: 25.90, provider: 'Papelaria Central', providerPhone: '(11) 98888-7777', purchaseDate: '2025-01-15' },
         { id: '2', name: 'Lona 440g Brilho', description: 'Lona para banners e faixas', category: 'Lona', unit: 'M²', stock: 50, minStock: 10, costPrice: 15.00, provider: 'Sign Digital', providerPhone: '(11) 97777-6666', purchaseDate: '2025-02-01' }
       ];
-      setSupplies(initial);
-      localStorage.setItem('quickprint_supplies', JSON.stringify(initial));
+      saveSupplies(initial);
     }
   }, []);
 
   const saveSupplies = (newSupplies: Supply[]) => {
-    setSupplies(newSupplies);
-    localStorage.setItem('quickprint_supplies', JSON.stringify(newSupplies));
+    // Ordenação alfabética antes de salvar
+    const sorted = [...newSupplies].sort((a, b) => a.name.localeCompare(b.name));
+    setSupplies(sorted);
+    localStorage.setItem('quickprint_supplies', JSON.stringify(sorted));
   };
 
   const [formData, setFormData] = useState({
@@ -184,7 +185,6 @@ const Supplies: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal Reestruturado conforme Imagem */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-8 overflow-hidden animate-in zoom-in duration-200">
@@ -198,7 +198,6 @@ const Supplies: React.FC = () => {
             </div>
             
             <form onSubmit={handleSubmit} className="p-8 space-y-8 bg-white">
-              {/* Informações Principais */}
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nome do Insumo *</label>

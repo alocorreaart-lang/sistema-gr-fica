@@ -49,13 +49,26 @@ const SystemSettingsPage: React.FC = () => {
       if (!parsed.paymentMethods) parsed.paymentMethods = [
         { id: 'pix', name: 'PIX' }, { id: 'card', name: 'Cartão' }, { id: 'cash', name: 'Dinheiro' }, { id: 'transfer', name: 'Transferência' }
       ];
+      
+      // Ordenação ao carregar
+      parsed.accounts.sort((a: any, b: any) => a.name.localeCompare(b.name));
+      parsed.paymentMethods.sort((a: any, b: any) => a.name.localeCompare(b.name));
+      
       setSettings(parsed);
     }
   }, []);
 
   const handleSave = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    localStorage.setItem('quickprint_settings', JSON.stringify(settings));
+    
+    // Ordenação antes de salvar
+    const sortedAccounts = [...settings.accounts].sort((a, b) => a.name.localeCompare(b.name));
+    const sortedMethods = [...settings.paymentMethods].sort((a, b) => a.name.localeCompare(b.name));
+    
+    const finalSettings = { ...settings, accounts: sortedAccounts, paymentMethods: sortedMethods };
+    setSettings(finalSettings);
+    localStorage.setItem('quickprint_settings', JSON.stringify(finalSettings));
+    
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -69,7 +82,8 @@ const SystemSettingsPage: React.FC = () => {
       type: newAccount.type,
       color: newAccount.type === 'BANK' ? '#2563eb' : '#16a34a'
     };
-    const updatedSettings = { ...settings, accounts: [...settings.accounts, account] };
+    const updatedAccounts = [...settings.accounts, account].sort((a, b) => a.name.localeCompare(b.name));
+    const updatedSettings = { ...settings, accounts: updatedAccounts };
     setSettings(updatedSettings);
     setNewAccount({ name: '', initialBalance: '', type: 'BANK' });
     localStorage.setItem('quickprint_settings', JSON.stringify(updatedSettings));
@@ -93,7 +107,8 @@ const SystemSettingsPage: React.FC = () => {
       id: Math.random().toString(36).substr(2, 9),
       name: newPaymentMethod
     };
-    const updatedSettings = { ...settings, paymentMethods: [...settings.paymentMethods, method] };
+    const updatedMethods = [...settings.paymentMethods, method].sort((a, b) => a.name.localeCompare(b.name));
+    const updatedSettings = { ...settings, paymentMethods: updatedMethods };
     setSettings(updatedSettings);
     setNewPaymentMethod('');
     localStorage.setItem('quickprint_settings', JSON.stringify(updatedSettings));

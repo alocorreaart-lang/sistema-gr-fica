@@ -18,14 +18,15 @@ const Products: React.FC = () => {
         { id: '1', name: 'Cartão de Visita 4x4', basePrice: 25.00, salePrice: 45.00, margin: 80, size: '9x5cm', material: 'Couché 300g', description: 'Verniz Total Frente' },
         { id: '2', name: 'Panfleto A5', basePrice: 80.00, salePrice: 120.00, margin: 50, size: '15x21cm', material: 'Papel 90g', description: '1000 unidades, Colorido' },
       ];
-      setProducts(initial);
-      localStorage.setItem('quickprint_products', JSON.stringify(initial));
+      saveProducts(initial);
     }
   }, []);
 
   const saveProducts = (newProducts: Product[]) => {
-    setProducts(newProducts);
-    localStorage.setItem('quickprint_products', JSON.stringify(newProducts));
+    // Ordenação alfabética antes de salvar
+    const sorted = [...newProducts].sort((a, b) => a.name.localeCompare(b.name));
+    setProducts(sorted);
+    localStorage.setItem('quickprint_products', JSON.stringify(sorted));
   };
 
   const [formData, setFormData] = useState({

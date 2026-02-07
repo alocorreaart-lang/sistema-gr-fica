@@ -27,14 +27,15 @@ const Clients: React.FC = () => {
         { id: '1', name: 'Gráfica Digital LTDA', email: 'contato@graficadigital.com', phone: '(11) 99999-9999', document: '12.345.678/0001-00', responsible: 'João Silva', city: 'São Paulo', address: 'Rua das Artes', addressNumber: '150' },
         { id: '2', name: 'Ana Costa Designer', email: 'ana@email.com', phone: '(11) 88888-8888', document: '987.654.321-11', responsible: 'Ana Costa', city: 'São Bernardo', address: 'Av Principal', addressNumber: '10' },
       ];
-      setClients(initial);
-      localStorage.setItem('quickprint_clients', JSON.stringify(initial));
+      saveClients(initial);
     }
   }, []);
 
   const saveClients = (newClients: Client[]) => {
-    setClients(newClients);
-    localStorage.setItem('quickprint_clients', JSON.stringify(newClients));
+    // Ordenação alfabética antes de salvar
+    const sorted = [...newClients].sort((a, b) => a.name.localeCompare(b.name));
+    setClients(sorted);
+    localStorage.setItem('quickprint_clients', JSON.stringify(sorted));
   };
 
   const [formData, setFormData] = useState({
