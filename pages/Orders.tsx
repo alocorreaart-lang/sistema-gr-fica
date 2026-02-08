@@ -4,7 +4,7 @@ import {
   Plus, Search, Pencil, Trash2, X, ShoppingCart, 
   PlusCircle, User, DollarSign, Eye, Printer, Save, 
   UserPlus, PackagePlus, Box, Settings2, Minus, Calendar, CreditCard,
-  CheckCircle2, MessageSquare, ClipboardList, FileText, Landmark
+  CheckCircle2, MessageSquare, ClipboardList, FileText, Landmark, Keyboard, List
 } from 'lucide-react';
 import { Order, OrderStatus, Client, Product, FinancialEntry, Account, SystemSettings, PaymentMethod } from '../types';
 import { generatePDF } from '../pdfService';
@@ -17,6 +17,7 @@ interface OrderItem {
   quantity: number;
   observations: string;
   price: number;
+  isManual?: boolean;
 }
 
 const formatPhone = (value: string) => {
@@ -32,6 +33,7 @@ const Orders: React.FC = () => {
   const { startDate, endDate } = useDateFilter();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
@@ -41,8 +43,11 @@ const Orders: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [systemPaymentMethods, setSystemPaymentMethods] = useState<PaymentMethod[]>([]);
 
+  // Estado para preenchimento manual
+  const [isManualEntry, setIsManualEntry] = useState(false);
+
   const [currentItem, setCurrentItem] = useState<OrderItem>({
-    id: '', serviceId: '', serviceName: '', quantity: 1, observations: '', price: 0
+    id: '', serviceId: '', serviceName: '', quantity: 1, observations: '', price: 0, isManual: false
   });
 
   const [isInstallmentEnabled, setIsInstallmentEnabled] = useState(false);
@@ -62,6 +67,18 @@ const Orders: React.FC = () => {
     installmentsCount: 1,
     installmentIntervalDays: 30,
     firstInstallmentDate: '',
+  });
+
+  const [clientFormData, setClientFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    document: '',
+    responsible: '',
+    address: '',
+    neighborhood: '',
+    city: '',
+    observations: ''
   });
 
   useEffect(() => {
@@ -94,9 +111,44 @@ const Orders: React.FC = () => {
   };
 
   const handleAddItem = () => {
-    if (!currentItem.serviceId) return;
-    setFormData({ ...formData, items: [...formData.items, { ...currentItem, id: Math.random().toString(36).substr(2, 9) }] });
-    setCurrentItem({ id: '', serviceId: '', serviceName: '', quantity: 1, observations: '', price: 0 });
+    if (isManualEntry) {
+      if (!currentItem.serviceName) return;
+      
+      // SALVAMENTO AUTOMÁTICO NA BASE DE PRODUTOS
+      const alreadyExists = products.some(p => p.name.toLowerCase() === currentItem.serviceName.toLowerCase());
+      
+      if (!alreadyExists) {
+        const newProduct: Product = {
+          id: Math.random().toString(36).substr(2, 9),
+          name: currentItem.serviceName,
+          category: 'Avulso',
+          basePrice: currentItem.price * 0.5, // Estimativa de custo de 50%
+          salePrice: currentItem.price,
+          margin: 100,
+          unit: 'Unidade',
+          size: '',
+          material: '',
+          description: 'Cadastrado automaticamente via pedido manual.'
+        };
+        const updatedProducts = [...products, newProduct];
+        setProducts(updatedProducts);
+        localStorage.setItem('quickprint_products', JSON.stringify(updatedProducts));
+      }
+
+      setFormData({ 
+        ...formData, 
+        items: [...formData.items, { ...currentItem, id: Math.random().toString(36).substr(2, 9), isManual: true }] 
+      });
+    } else {
+      if (!currentItem.serviceId) return;
+      setFormData({ 
+        ...formData, 
+        items: [...formData.items, { ...currentItem, id: Math.random().toString(36).substr(2, 9), isManual: false }] 
+      });
+    }
+
+    setCurrentItem({ id: '', serviceId: '', serviceName: '', quantity: 1, observations: '', price: 0, isManual: false });
+    setIsManualEntry(false);
   };
 
   const calculateTotal = () => {
@@ -141,6 +193,43 @@ const Orders: React.FC = () => {
   const handleOpenDetails = (order: Order) => {
     setViewingOrder(order);
     setIsDetailsOpen(true);
+  };
+
+  const handleCreateQuickClient = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientFormData.name) return;
+
+    const newClient: Client = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: clientFormData.name,
+      email: clientFormData.email,
+      phone: clientFormData.phone,
+      document: clientFormData.document,
+      responsible: clientFormData.responsible,
+      address: clientFormData.address,
+      neighborhood: clientFormData.neighborhood,
+      city: clientFormData.city,
+      observations: clientFormData.observations
+    };
+
+    const updatedClients = [...clients, newClient];
+    setClients(updatedClients);
+    localStorage.setItem('quickprint_clients', JSON.stringify(updatedClients));
+
+    // Seleciona automaticamente o novo cliente no pedido
+    setFormData({
+      ...formData,
+      clientId: newClient.id,
+      clientName: newClient.name,
+      clientPhone: newClient.phone
+    });
+
+    setIsClientModalOpen(false);
+    setClientFormData({ 
+      name: '', email: '', phone: '', document: '', 
+      responsible: '', address: '', neighborhood: '', 
+      city: '', observations: '' 
+    });
   };
 
   const handleSubmitOrder = (e: React.FormEvent) => {
@@ -197,12 +286,10 @@ const Orders: React.FC = () => {
       saveOrders([newOrder, ...orders]);
     }
 
-    // --- INTEGRAÇÃO FINANCEIRA COMPLETA ---
     const storedFinancial = localStorage.getItem('quickprint_financial');
     const financial: FinancialEntry[] = storedFinancial ? JSON.parse(storedFinancial) : [];
     const newFinancialEntries: FinancialEntry[] = [];
 
-    // 1. Registro da Entrada (Liquidada)
     if (formData.entry > 0) {
       newFinancialEntries.push({
         id: Math.random().toString(36).substr(2, 9),
@@ -217,7 +304,6 @@ const Orders: React.FC = () => {
       });
     }
 
-    // 2. Registro das Parcelas Subsequentes (Pendentes)
     if (isInstallmentEnabled && formData.installmentsCount > 0 && formData.firstInstallmentDate) {
       const instValue = installmentValue;
       const startDate = new Date(formData.firstInstallmentDate + 'T12:00:00');
@@ -239,7 +325,6 @@ const Orders: React.FC = () => {
         });
       }
     } else if (!isInstallmentEnabled && (total - formData.entry) > 0.01) {
-      // Se não tem parcelas mas tem saldo, gera uma receita pendente para a data de entrega
       newFinancialEntries.push({
         id: Math.random().toString(36).substr(2, 9),
         description: `Saldo Restante Pedido #${orderNum} - ${formData.clientName}`,
@@ -341,7 +426,11 @@ const Orders: React.FC = () => {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <label className="text-sm font-medium text-slate-700">Cliente</label>
-                  <button type="button" className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-md text-xs font-medium text-slate-600 hover:bg-gray-50 transition-colors">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsClientModalOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-blue-600 bg-blue-50 rounded-md text-xs font-bold text-blue-600 hover:bg-blue-100 transition-colors"
+                  >
                     <UserPlus size={14} /> Novo Cliente
                   </button>
                 </div>
@@ -444,34 +533,55 @@ const Orders: React.FC = () => {
               </div>
 
               <div className="space-y-4 pt-4 border-t border-gray-100">
-                <h4 className="text-xl font-semibold text-slate-800">Adicionar Itens</h4>
-                <div className="grid grid-cols-12 gap-3 items-end">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xl font-semibold text-slate-800">Adicionar Itens</h4>
+                  <button 
+                    type="button" 
+                    onClick={() => setIsManualEntry(!isManualEntry)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all border ${isManualEntry ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                  >
+                    {isManualEntry ? <List size={14} /> : <Keyboard size={14} />}
+                    {isManualEntry ? 'Seleção por Lista' : 'Preenchimento Manual'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-12 gap-3 items-end p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
                   <div className="col-span-12 md:col-span-3 space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-500 uppercase">SERVIÇO / PRODUTO</label>
-                    <select 
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg outline-none text-sm text-slate-400"
-                      value={currentItem.serviceId}
-                      onChange={e => {
-                        const p = products.find(prod => prod.id === e.target.value);
-                        setCurrentItem({...currentItem, serviceId: e.target.value, serviceName: p?.name || '', price: p?.salePrice || 0});
-                      }}
-                    >
-                      <option value="">Selecione um serviço</option>
-                      {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
+                    {isManualEntry ? (
+                      <input 
+                        type="text" 
+                        placeholder="Nome do serviço manual..."
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-lg outline-none text-sm font-bold text-slate-700 placeholder:text-slate-300 focus:border-orange-300 transition-colors"
+                        value={currentItem.serviceName}
+                        onChange={e => setCurrentItem({...currentItem, serviceName: e.target.value})}
+                      />
+                    ) : (
+                      <select 
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-lg outline-none text-sm text-slate-400 bg-white"
+                        value={currentItem.serviceId}
+                        onChange={e => {
+                          const p = products.find(prod => prod.id === e.target.value);
+                          setCurrentItem({...currentItem, serviceId: e.target.value, serviceName: p?.name || '', price: p?.salePrice || 0});
+                        }}
+                      >
+                        <option value="">Selecione um serviço</option>
+                        {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    )}
                   </div>
                   <div className="col-span-6 md:col-span-2 space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-500 uppercase">VR. UNITARIO (R$)</label>
                     <input 
                       type="number" step="0.01"
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg outline-none text-sm font-bold text-slate-700"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg outline-none text-sm font-bold text-slate-700 bg-white"
                       value={currentItem.price || ''}
                       onChange={e => setCurrentItem({...currentItem, price: parseFloat(e.target.value) || 0})}
                     />
                   </div>
                   <div className="col-span-6 md:col-span-2 space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-500 uppercase text-center block">QUANTIDADE</label>
-                    <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white">
                       <button type="button" onClick={() => setCurrentItem({...currentItem, quantity: Math.max(1, currentItem.quantity - 1)})} className="px-2 py-2 hover:bg-gray-50 text-slate-400 border-r"><Minus size={14} /></button>
                       <input type="number" className="w-full text-center text-sm font-medium outline-none" value={currentItem.quantity} onChange={e => setCurrentItem({...currentItem, quantity: parseInt(e.target.value) || 1})} />
                       <button type="button" onClick={() => setCurrentItem({...currentItem, quantity: currentItem.quantity + 1})} className="px-2 py-2 hover:bg-gray-50 text-slate-400 border-l"><Plus size={14} /></button>
@@ -479,74 +589,194 @@ const Orders: React.FC = () => {
                   </div>
                   <div className="col-span-9 md:col-span-4 space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-500 uppercase">OBSERVAÇÕES</label>
-                    <input type="text" placeholder="Detalhes" className="w-full px-3 py-2.5 border border-gray-200 rounded-lg outline-none text-sm placeholder:text-gray-300" value={currentItem.observations} onChange={e => setCurrentItem({...currentItem, observations: e.target.value})} />
+                    <input type="text" placeholder="Detalhes" className="w-full px-3 py-2.5 border border-gray-200 rounded-lg outline-none text-sm placeholder:text-gray-300 bg-white" value={currentItem.observations} onChange={e => setCurrentItem({...currentItem, observations: e.target.value})} />
                   </div>
                   <div className="col-span-3 md:col-span-1">
                     <button type="button" onClick={handleAddItem} className="w-full bg-blue-600 text-white p-2.5 rounded-lg hover:bg-blue-700 transition-colors flex justify-center shadow-md shadow-blue-100"><Plus size={20} /></button>
                   </div>
                 </div>
 
-                {formData.items.map(item => (
-                  <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-700">{item.serviceName}</span>
-                      <span className="text-[10px] text-gray-400 font-medium">{item.quantity}x • R$ {item.price.toFixed(2)} un • {item.observations}</span>
+                <div className="space-y-3">
+                  {formData.items.map(item => (
+                    <div key={item.id} className="flex justify-between items-center p-4 bg-white rounded-xl border border-gray-100 shadow-sm animate-in slide-in-from-left-2 transition-all hover:border-blue-200">
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-black text-slate-800 uppercase tracking-tight">{item.serviceName}</span>
+                          {item.isManual && <span className="text-[8px] font-black bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded uppercase">Manual</span>}
+                        </div>
+                        <span className="text-[10px] text-gray-400 font-medium">{item.quantity}x • R$ {item.price.toFixed(2)} un • {item.observations || 'Sem observações'}</span>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <span className="text-sm font-black text-blue-600">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                        <button type="button" onClick={() => setFormData({...formData, items: formData.items.filter(i => i.id !== item.id)})} className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm font-black text-slate-600">R$ {(item.price * item.quantity).toFixed(2)}</span>
-                      <button type="button" onClick={() => setFormData({...formData, items: formData.items.filter(i => i.id !== item.id)})} className="text-red-400 hover:text-red-600"><Trash2 size={16} /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-4 pt-4 border-t border-gray-100">
-                <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-3">
-                      <CreditCard size={18} className="text-blue-600" />
-                      <h4 className="text-sm font-bold text-slate-700 uppercase">Opções de Parcelamento</h4>
-                   </div>
-                   <label className="inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" checked={isInstallmentEnabled} onChange={() => setIsInstallmentEnabled(!isInstallmentEnabled)} />
-                      <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
-                   </label>
+                  ))}
                 </div>
-
-                {isInstallmentEnabled && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50/30 rounded-xl border border-blue-100 animate-in slide-in-from-top-2">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Qtd Parcelas</label>
-                      <input type="number" min="1" className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none text-sm font-bold" value={formData.installmentsCount} onChange={e => setFormData({...formData, installmentsCount: parseInt(e.target.value) || 1})} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">1º Vencimento</label>
-                      <input type="date" className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none text-sm" value={formData.firstInstallmentDate} onChange={e => setFormData({...formData, firstInstallmentDate: e.target.value})} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Intervalo (Dias)</label>
-                      <input type="number" step="1" className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none text-sm" value={formData.installmentIntervalDays} onChange={e => setFormData({...formData, installmentIntervalDays: parseInt(e.target.value) || 30})} />
-                    </div>
-                    <div className="col-span-full pt-2">
-                      <p className="text-[10px] font-bold text-blue-600 uppercase">Cada parcela será de: <span className="text-sm font-black">R$ {calculateInstallmentValue().toFixed(2)}</span></p>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="flex flex-col md:flex-row justify-between items-center gap-6 pt-4 border-t border-gray-100">
                 <div className="w-full md:w-1/3 space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">VALOR DE ENTRADA (R$)</label>
-                  <input type="number" step="0.01" className="w-full px-4 py-3 border border-gray-200 rounded-lg outline-none focus:border-slate-400 text-sm font-black" value={formData.entry || ''} onChange={e => setFormData({...formData, entry: parseFloat(e.target.value) || 0})} />
+                  <input type="number" step="0.01" className="w-full px-4 py-3 border border-gray-200 rounded-lg outline-none focus:border-slate-400 text-sm font-black bg-slate-50" value={formData.entry || ''} onChange={e => setFormData({...formData, entry: parseFloat(e.target.value) || 0})} />
                 </div>
                 <div className="w-full md:w-auto text-center md:text-right space-y-1">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">TOTAL LÍQUIDO</p>
-                  <p className="text-3xl font-black text-blue-600">R$ {calculateTotal().toFixed(2)}</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">TOTAL LÍQUIDO DO PEDIDO</p>
+                  <p className="text-4xl font-black text-blue-600 tracking-tighter">R$ {calculateTotal().toFixed(2)}</p>
                 </div>
               </div>
 
               <div className="flex justify-end gap-4 pt-6">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-10 py-2.5 border border-gray-200 text-slate-700 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-gray-50 transition-colors">CANCELAR</button>
-                <button type="submit" className="px-10 py-2.5 bg-blue-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg">FINALIZAR PEDIDO</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-10 py-3 border border-gray-200 text-slate-700 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-colors">CANCELAR</button>
+                <button type="submit" className="px-10 py-3 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95">FINALIZAR PEDIDO</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL NOVO CLIENTE (FIEL À IMAGEM) */}
+      {isClientModalOpen && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in duration-200">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-[#1e293b]">Novo Cliente</h3>
+              <button onClick={() => setIsClientModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateQuickClient} className="p-8 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
+                
+                {/* Nome Completo */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-bold text-[#475569]">Nome Completo *</label>
+                  <input 
+                    required 
+                    type="text" 
+                    placeholder="Nome do cliente"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg outline-none focus:border-blue-500 transition-colors placeholder:text-gray-300" 
+                    value={clientFormData.name} 
+                    onChange={e => setClientFormData({...clientFormData, name: e.target.value})} 
+                  />
+                </div>
+
+                {/* Telefone */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-bold text-[#475569]">Telefone</label>
+                  <input 
+                    type="text" 
+                    placeholder="(00) 00000-0000"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg outline-none focus:border-blue-500 transition-colors placeholder:text-gray-300" 
+                    value={clientFormData.phone} 
+                    onChange={e => setClientFormData({...clientFormData, phone: formatPhone(e.target.value)})} 
+                  />
+                </div>
+
+                {/* Email */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-bold text-[#475569]">Email</label>
+                  <input 
+                    type="email" 
+                    placeholder="email@exemplo.com"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg outline-none focus:border-blue-500 transition-colors placeholder:text-gray-300" 
+                    value={clientFormData.email} 
+                    onChange={e => setClientFormData({...clientFormData, email: e.target.value})} 
+                  />
+                </div>
+
+                {/* CPF/CNPJ */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-bold text-[#475569]">CPF/CNPJ</label>
+                  <input 
+                    type="text" 
+                    placeholder="000.000.000-00"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg outline-none focus:border-blue-500 transition-colors placeholder:text-gray-300" 
+                    value={clientFormData.document} 
+                    onChange={e => setClientFormData({...clientFormData, document: e.target.value})} 
+                  />
+                </div>
+
+                {/* Responsável */}
+                <div className="col-span-1 md:col-span-2 space-y-1.5">
+                  <label className="block text-sm font-bold text-[#475569]">Responsável</label>
+                  <input 
+                    type="text" 
+                    placeholder="Nome do responsável pelo cliente"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg outline-none focus:border-blue-500 transition-colors placeholder:text-gray-300" 
+                    value={clientFormData.responsible} 
+                    onChange={e => setClientFormData({...clientFormData, responsible: e.target.value})} 
+                  />
+                </div>
+
+                {/* Endereço */}
+                <div className="col-span-1 md:col-span-2 space-y-1.5">
+                  <label className="block text-sm font-bold text-[#475569]">Endereço</label>
+                  <input 
+                    type="text" 
+                    placeholder="Rua e número"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg outline-none focus:border-blue-500 transition-colors placeholder:text-gray-300" 
+                    value={clientFormData.address} 
+                    onChange={e => setClientFormData({...clientFormData, address: e.target.value})} 
+                  />
+                </div>
+
+                {/* Bairro */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-bold text-[#475569]">Bairro</label>
+                  <input 
+                    type="text" 
+                    placeholder="Bairro"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg outline-none focus:border-blue-500 transition-colors placeholder:text-gray-300" 
+                    value={clientFormData.neighborhood} 
+                    onChange={e => setClientFormData({...clientFormData, neighborhood: e.target.value})} 
+                  />
+                </div>
+
+                {/* Cidade */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-bold text-[#475569]">Cidade</label>
+                  <input 
+                    type="text" 
+                    placeholder="Cidade"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg outline-none focus:border-blue-500 transition-colors placeholder:text-gray-300" 
+                    value={clientFormData.city} 
+                    onChange={e => setClientFormData({...clientFormData, city: e.target.value})} 
+                  />
+                </div>
+
+                {/* Observações */}
+                <div className="col-span-1 md:col-span-2 space-y-1.5">
+                  <label className="block text-sm font-bold text-[#475569]">Observações</label>
+                  <textarea 
+                    rows={4}
+                    placeholder="Informações adicionais sobre o cliente"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg outline-none focus:border-blue-500 transition-colors resize-none placeholder:text-gray-400" 
+                    value={clientFormData.observations} 
+                    onChange={e => setClientFormData({...clientFormData, observations: e.target.value})} 
+                  />
+                </div>
+
+              </div>
+
+              {/* Botões Ações */}
+              <div className="flex justify-end gap-4 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setIsClientModalOpen(false)} 
+                  className="px-8 py-3 border border-gray-200 text-[#1e293b] rounded-lg font-bold hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-8 py-3 bg-[#82cf9e] text-white rounded-lg font-bold shadow-md hover:bg-[#6fb98d] transition-all flex items-center gap-2"
+                >
+                  <Save size={18} />
+                  Salvar
+                </button>
               </div>
             </form>
           </div>
