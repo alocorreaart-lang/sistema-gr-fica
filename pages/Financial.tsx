@@ -6,7 +6,7 @@ import {
   ShoppingCart, Banknote, DollarSign, User, CheckCircle2,
   Smartphone, CreditCard, ArrowLeftRight, Landmark, Trash2,
   Eye, Pencil, AlertCircle, Check, RefreshCcw, Repeat, Clock,
-  PiggyBank, Settings2
+  PiggyBank, Settings2, Tag, Hash
 } from 'lucide-react';
 import { FinancialEntry, SystemSettings, Account, PaymentMethod } from '../types';
 import { useDateFilter } from '../App';
@@ -16,6 +16,7 @@ const Financial: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'MOVIMENTACOES' | 'CARTEIRAS' | 'METODOS'>('MOVIMENTACOES');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
   const [entries, setEntries] = useState<FinancialEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,7 +26,6 @@ const Financial: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [systemPaymentMethods, setSystemPaymentMethods] = useState<PaymentMethod[]>([]);
 
-  // Fix: Added missing formData state to manage input fields in the financial entry modal
   const [formData, setFormData] = useState({
     id: '',
     description: '',
@@ -52,7 +52,6 @@ const Financial: React.FC = () => {
     const storedSettings = localStorage.getItem('quickprint_settings');
     if (storedSettings) {
       const settings: SystemSettings = JSON.parse(storedSettings);
-      // Garantir ordenação ao carregar
       const sortedAccounts = [...(settings.accounts || [])].sort((a, b) => a.name.localeCompare(b.name));
       const sortedMethods = [...(settings.paymentMethods || [])].sort((a, b) => a.name.localeCompare(b.name));
       setAccounts(sortedAccounts);
@@ -64,7 +63,6 @@ const Financial: React.FC = () => {
     const stored = localStorage.getItem('quickprint_settings');
     const settings: SystemSettings = stored ? JSON.parse(stored) : { companyName: 'QuickPrint' };
     
-    // Ordenação alfabética antes de salvar
     const sortedAccounts = [...newAccounts].sort((a, b) => a.name.localeCompare(b.name));
     const sortedMethods = [...newMethods].sort((a, b) => a.name.localeCompare(b.name));
     
@@ -108,6 +106,11 @@ const Financial: React.FC = () => {
     setIsDetailsOpen(true);
   };
 
+  const handleViewDetails = (entry: FinancialEntry) => {
+    setSelectedEntry(entry);
+    setIsViewModalOpen(true);
+  };
+
   const handleQuittance = () => {
     if (!selectedEntry) return;
     const updatedEntries = entries.map(e => {
@@ -145,7 +148,6 @@ const Financial: React.FC = () => {
     }
   };
 
-  // Carteiras
   const addAccount = () => {
     const name = prompt('Nome da Nova Carteira (ex: Banco Inter, Caixa Loja):');
     if (!name) return;
@@ -160,19 +162,16 @@ const Financial: React.FC = () => {
     }
   };
 
-  // Filtros de Lançamentos
   const filteredEntries = entries.filter(e => {
     const matchesSearch = e.description.toLowerCase().includes(searchTerm.toLowerCase()) || e.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesPeriod = filterByRange(e.date);
     return matchesSearch && matchesPeriod;
   });
 
-  // Cálculos Financeiros (Somente Realizados - PAID)
   const totalIncomeRealized = filteredEntries.filter(e => e.type === 'INCOME' && e.status === 'PAID').reduce((acc, e) => acc + e.amount, 0);
   const totalExpenseRealized = filteredEntries.filter(e => e.type === 'EXPENSE' && e.status === 'PAID').reduce((acc, e) => acc + e.amount, 0);
   const totalIncomePending = filteredEntries.filter(e => e.type === 'INCOME' && e.status === 'PENDING').reduce((acc, e) => acc + e.amount, 0);
   const totalExpensePending = filteredEntries.filter(e => e.type === 'EXPENSE' && e.status === 'PENDING').reduce((acc, e) => acc + e.amount, 0);
-  
   const balancePeriod = totalIncomeRealized - totalExpenseRealized;
 
   return (
@@ -274,10 +273,11 @@ const Financial: React.FC = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex justify-center gap-1">
+                            <button onClick={() => handleViewDetails(entry)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Ver Detalhes"><Eye size={16} /></button>
                             {!isPaid && (
-                              <button onClick={() => handleOpenDetails(entry)} className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-all"><Check size={18} /></button>
+                              <button onClick={() => handleOpenDetails(entry)} className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Liquidar"><Check size={18} /></button>
                             )}
-                            <button onClick={() => handleDeleteEntry(entry.id)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={16} /></button>
+                            <button onClick={() => handleDeleteEntry(entry.id)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Excluir"><Trash2 size={16} /></button>
                           </div>
                         </td>
                       </tr>
@@ -410,6 +410,93 @@ const Financial: React.FC = () => {
                 </div>
               </div>
               <button onClick={handleQuittance} className="w-full py-5 bg-green-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-green-100 hover:bg-green-700 transition-all flex items-center justify-center gap-2"><CheckCircle2 size={20} /> Confirmar Recebimento</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Visualização de Detalhes */}
+      {isViewModalOpen && selectedEntry && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in duration-200">
+            <div className={`p-6 border-b border-gray-100 flex justify-between items-center ${selectedEntry.type === 'INCOME' ? 'bg-green-600' : 'bg-red-600'} text-white`}>
+              <div className="flex items-center gap-2">
+                <Eye size={20} />
+                <h3 className="text-lg font-black uppercase tracking-widest">Detalhes do Lançamento</h3>
+              </div>
+              <button onClick={() => setIsViewModalOpen(false)} className="hover:rotate-90 transition-all"><X size={24} /></button>
+            </div>
+            <div className="p-8 space-y-6">
+              <div className="text-center pb-6 border-b border-slate-100">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                   <Hash size={12} /> ID: {selectedEntry.id}
+                </div>
+                <h4 className="text-xl font-black text-slate-800 uppercase tracking-tight leading-tight">{selectedEntry.description}</h4>
+                <div className="mt-4 flex flex-col items-center">
+                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Valor do Lançamento</span>
+                   <p className={`text-4xl font-black ${selectedEntry.type === 'INCOME' ? 'text-green-600' : 'text-red-600'} tracking-tighter`}>
+                     {selectedEntry.type === 'INCOME' ? '+' : '-'} R$ {selectedEntry.amount.toFixed(2)}
+                   </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                 <div className="space-y-1">
+                   <span className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                     <Calendar size={12} /> Data
+                   </span>
+                   <p className="text-sm font-bold text-slate-700">{new Date(selectedEntry.date + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                 </div>
+                 <div className="space-y-1">
+                   <span className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                     <AlertCircle size={12} /> Status
+                   </span>
+                   <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${selectedEntry.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                     {selectedEntry.status === 'PAID' ? 'LIQUIDADO' : 'PENDENTE'}
+                   </span>
+                 </div>
+                 <div className="space-y-1">
+                   <span className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                     <Tag size={12} /> Categoria
+                   </span>
+                   <p className="text-sm font-bold text-slate-700 uppercase">{selectedEntry.category || 'Geral'}</p>
+                 </div>
+                 <div className="space-y-1">
+                   <span className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                     <Wallet size={12} /> Carteira
+                   </span>
+                   <p className="text-sm font-bold text-slate-700 uppercase">{accounts.find(a => a.id === selectedEntry.accountId)?.name || 'N/A'}</p>
+                 </div>
+                 <div className="space-y-1">
+                   <span className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                     <CreditCard size={12} /> Método
+                   </span>
+                   <p className="text-sm font-bold text-slate-700 uppercase">{selectedEntry.method || 'N/A'}</p>
+                 </div>
+                 <div className="space-y-1">
+                   <span className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                     <RefreshCcw size={12} /> Tipo
+                   </span>
+                   <p className="text-sm font-bold text-slate-700 uppercase">{selectedEntry.type === 'INCOME' ? 'Receita' : 'Despesa'}</p>
+                 </div>
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  onClick={() => setIsViewModalOpen(false)} 
+                  className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
+                >
+                  Fechar
+                </button>
+                {selectedEntry.status === 'PENDING' && (
+                  <button 
+                    onClick={() => { setIsViewModalOpen(false); handleOpenDetails(selectedEntry); }} 
+                    className="flex-1 py-4 bg-amber-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-amber-600 transition-all shadow-lg shadow-amber-100 active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Check size={14} /> Liquidar Agora
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { Order, OrderStatus, Client, Product, FinancialEntry, Account, SystemSettings, PaymentMethod } from '../types';
 import { generatePDF } from '../pdfService';
-import { useDateFilter } from '../App';
+import { useDateFilter, getLocalDateString } from '../App';
 
 interface OrderItem {
   id: string;
@@ -44,6 +44,8 @@ const Orders: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [systemPaymentMethods, setSystemPaymentMethods] = useState<PaymentMethod[]>([]);
   const [history, setHistory] = useState<FinancialEntry[]>([]);
+  
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
 
   const [currentItem, setCurrentItem] = useState<OrderItem>({
     id: '', serviceId: '', serviceName: '', quantity: 1, observations: '', price: 0, isManual: false
@@ -53,7 +55,7 @@ const Orders: React.FC = () => {
     clientId: '',
     clientName: 'Consumidor Final',
     clientPhone: '',
-    deliveryDate: new Date().toISOString().split('T')[0],
+    deliveryDate: getLocalDateString(),
     status: OrderStatus.OPEN,
     priority: 'Normal',
     paymentMethod: 'Dinheiro',
@@ -66,7 +68,7 @@ const Orders: React.FC = () => {
     items: [] as OrderItem[],
     installmentsCount: 1,
     installmentIntervalDays: 30,
-    firstInstallmentDate: new Date().toISOString().split('T')[0],
+    firstInstallmentDate: getLocalDateString(),
   });
 
   const [clientFormData, setClientFormData] = useState({
@@ -165,7 +167,13 @@ const Orders: React.FC = () => {
     e.preventDefault();
     const total = calculateTotal();
     const balance = total - formData.entry;
-    const orderNum = editingOrderId ? orders.find(o => o.id === editingOrderId)?.orderNumber : (orders.length + 1).toString().padStart(4, '0');
+    
+    const storedOrders = localStorage.getItem('quickprint_orders');
+    const allOrders: Order[] = storedOrders ? JSON.parse(storedOrders) : [];
+    
+    const orderNum = editingOrderId 
+      ? allOrders.find(o => o.id === editingOrderId)?.orderNumber 
+      : (allOrders.length + 1).toString().padStart(4, '0');
     
     const installmentsCount = Math.max(1, formData.installmentsCount || 1);
     const installmentValue = balance / installmentsCount;
@@ -181,19 +189,20 @@ const Orders: React.FC = () => {
       total,
       entry: formData.entry,
       entryMethod: formData.paymentMethod,
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDateString(), // DATA LOCAL
       deliveryDate: formData.deliveryDate,
       items: formData.items,
       paidInstallmentIndices: [],
       installmentsCount: installmentsCount,
       installmentValue: installmentValue,
       firstInstallmentDate: formData.firstInstallmentDate,
-      installmentIntervalDays: formData.installmentIntervalDays || 30
+      installmentIntervalDays: formData.installmentIntervalDays || 30,
+      archived: false
     };
 
     let newOrders = [];
-    if (editingOrderId) newOrders = orders.map(o => o.id === editingOrderId ? orderData : o);
-    else newOrders = [orderData, ...orders];
+    if (editingOrderId) newOrders = allOrders.map(o => o.id === editingOrderId ? orderData : o);
+    else newOrders = [orderData, ...allOrders];
     saveOrders(newOrders);
 
     let financialUpdates: FinancialEntry[] = [...history];
@@ -203,7 +212,7 @@ const Orders: React.FC = () => {
         description: `Entrada Pedido #${orderNum} - ${formData.clientName}`,
         amount: formData.entry,
         type: 'INCOME',
-        date: new Date().toISOString().split('T')[0],
+        date: getLocalDateString(),
         category: 'Vendas',
         method: formData.paymentMethod,
         accountId: formData.accountId || accounts[0]?.id || 'default',
@@ -222,7 +231,7 @@ const Orders: React.FC = () => {
           description: `Parc. ${i + 1}/${installmentsCount} Pedido #${orderNum} - ${formData.clientName}`,
           amount: installmentValue,
           type: 'INCOME',
-          date: dueDate.toISOString().split('T')[0],
+          date: getLocalDateString(dueDate),
           category: 'Vendas',
           method: 'A DEFINIR',
           accountId: formData.accountId || accounts[0]?.id || 'default',
@@ -234,6 +243,10 @@ const Orders: React.FC = () => {
     setHistory(financialUpdates);
     setIsModalOpen(false);
   };
+
+  const filteredProductsBySearch = products.filter(p => 
+    p.name.toLowerCase().includes(currentItem.serviceName.toLowerCase())
+  );
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
@@ -265,7 +278,7 @@ const Orders: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filteredOrders.map(o => (
+            {filteredOrders.length > 0 ? filteredOrders.map(o => (
               <tr key={o.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4 font-mono font-bold text-xs">#{o.orderNumber}</td>
                 <td className="px-6 py-4 font-bold text-xs uppercase">{o.clientName}</td>
@@ -280,7 +293,11 @@ const Orders: React.FC = () => {
                   </div>
                 </td>
               </tr>
-            ))}
+            )) : (
+              <tr>
+                <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">Nenhum pedido encontrado para o período ou busca selecionados.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -326,77 +343,89 @@ const Orders: React.FC = () => {
                 </div>
               </div>
 
-              {/* Bloco de Produtos com Busca de Produtos Cadastrados */}
-              <div className="bg-[#f8fafc] p-6 rounded-2xl border border-gray-100 space-y-6">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-[10px] font-black text-[#94a3b8] uppercase tracking-widest">PRODUTOS / SERVIÇOS</h4>
-                  <div className="flex items-center gap-2">
-                    <Package size={14} className="text-slate-400" />
-                    <select 
-                      className="bg-transparent text-[10px] font-black text-blue-600 uppercase border-none focus:ring-0 outline-none cursor-pointer"
-                      value={currentItem.serviceId}
-                      onChange={e => {
-                        const product = products.find(p => p.id === e.target.value);
-                        if (product) {
-                          setCurrentItem({
-                            ...currentItem,
-                            serviceId: product.id,
-                            serviceName: product.name,
-                            price: product.salePrice
-                          });
-                        } else {
-                          setCurrentItem({
-                            ...currentItem,
-                            serviceId: '',
-                            serviceName: '',
-                            price: 0
-                          });
-                        }
-                      }}
-                    >
-                      <option value="">Buscar Produto Cadastrado...</option>
-                      {products.map(p => (
-                        <option key={p.id} value={p.id}>{p.name} - R$ {p.salePrice.toFixed(2)}</option>
-                      ))}
-                    </select>
+              <div className="bg-[#f8fafc] p-6 rounded-2xl border border-gray-100 space-y-4">
+                <h4 className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">PRODUTOS / SERVIÇOS</h4>
+                
+                <div className="flex flex-col md:flex-row items-end gap-3">
+                  <div className="flex-1 w-full space-y-1.5">
+                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">ITEM (BUSCA OU MANUAL)</label>
+                    <div className="relative group">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                        <Search size={16} />
+                      </div>
+                      <input 
+                        type="text" 
+                        placeholder="Procure um produto ou digite..."
+                        className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 bg-white text-xs font-medium text-slate-700 placeholder:text-slate-400 shadow-sm transition-all"
+                        value={currentItem.serviceName}
+                        onFocus={() => setShowProductDropdown(true)}
+                        onChange={e => {
+                          setCurrentItem({...currentItem, serviceName: e.target.value, serviceId: ''});
+                          setShowProductDropdown(true);
+                        }}
+                      />
+                      
+                      {showProductDropdown && currentItem.serviceName.length > 0 && filteredProductsBySearch.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                           {filteredProductsBySearch.map(p => (
+                             <div 
+                               key={p.id} 
+                               className="px-4 py-3 hover:bg-slate-50 cursor-pointer flex justify-between items-center border-b border-gray-50 last:border-none"
+                               onClick={() => {
+                                 setCurrentItem({
+                                   ...currentItem,
+                                   serviceId: p.id,
+                                   serviceName: p.name,
+                                   price: p.salePrice
+                                 });
+                                 setShowProductDropdown(false);
+                               }}
+                             >
+                               <span className="text-xs font-bold text-slate-700 uppercase">{p.name}</span>
+                               <span className="text-[10px] font-black text-blue-600">R$ {p.salePrice.toFixed(2)}</span>
+                             </div>
+                           ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-12 gap-4 items-end">
-                  <div className="col-span-12 md:col-span-6 space-y-2">
-                    <label className="text-[10px] font-black text-[#94a3b8] uppercase tracking-widest">DESCRIÇÃO DO ITEM</label>
-                    <input 
-                      type="text" 
-                      placeholder="Nome do produto ou serviço..."
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 bg-white text-xs font-bold text-slate-700"
-                      value={currentItem.serviceName}
-                      onChange={e => setCurrentItem({...currentItem, serviceName: e.target.value, serviceId: ''})}
-                    />
-                  </div>
-                  <div className="col-span-6 md:col-span-2 space-y-2">
-                    <label className="text-[10px] font-black text-[#94a3b8] uppercase tracking-widest text-center block">QTD</label>
+                  <div className="w-full md:w-28 space-y-1.5">
+                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">QTD</label>
                     <input 
                       type="number" 
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 bg-white text-xs font-black text-slate-700 text-center"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 bg-white text-xs font-bold text-slate-700 text-center shadow-sm"
                       value={currentItem.quantity}
                       onChange={e => setCurrentItem({...currentItem, quantity: parseInt(e.target.value) || 1})}
                     />
                   </div>
-                  <div className="col-span-6 md:col-span-3 space-y-2">
-                    <label className="text-[10px] font-black text-[#94a3b8] uppercase tracking-widest">PREÇO UNIT.</label>
-                    <input 
-                      type="number" step="0.01"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 bg-white text-xs font-black text-slate-700"
-                      value={currentItem.price || ''}
-                      onChange={e => setCurrentItem({...currentItem, price: parseFloat(e.target.value) || 0})}
-                    />
+
+                  <div className="w-full md:w-36 space-y-1.5">
+                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">PREÇO UNIT.</label>
+                    <div className="relative">
+                      <input 
+                        type="number" step="0.01"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 bg-white text-xs font-bold text-slate-700 shadow-sm"
+                        value={currentItem.price || ''}
+                        onChange={e => setCurrentItem({...currentItem, price: parseFloat(e.target.value) || 0})}
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col text-slate-400 pointer-events-none scale-75">
+                         <ChevronUp size={14} />
+                         <ChevronDown size={14} />
+                      </div>
+                    </div>
                   </div>
-                  <div className="col-span-12 md:col-span-1">
-                    <button type="button" onClick={handleAddItem} className="w-full aspect-square bg-[#0f172a] text-white rounded-xl flex items-center justify-center hover:bg-[#1e293b] transition-all active:scale-95 shadow-lg"><Plus size={20} /></button>
-                  </div>
+
+                  <button 
+                    type="button" 
+                    onClick={handleAddItem} 
+                    className="w-full md:w-16 h-12 bg-[#0f172a] text-white rounded-xl flex items-center justify-center hover:bg-[#1e293b] transition-all active:scale-95 shadow-md shrink-0"
+                  >
+                    <Plus size={24} />
+                  </button>
                 </div>
 
-                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm mt-4">
                   <table className="w-full text-left">
                     <thead className="bg-[#f1f5f9] border-b border-gray-100">
                       <tr>
@@ -426,7 +455,6 @@ const Orders: React.FC = () => {
                 </div>
               </div>
 
-              {/* Logística */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">VALOR DO FRETE (R$)</label>
@@ -438,7 +466,6 @@ const Orders: React.FC = () => {
                 </div>
               </div>
 
-              {/* Pagamento e Parcelas */}
               <div className="grid grid-cols-12 gap-6 items-end">
                 <div className="col-span-12 md:col-span-4 space-y-2">
                   <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">FORMA DE PAGAMENTO</label>
@@ -462,7 +489,6 @@ const Orders: React.FC = () => {
                 </div>
               </div>
 
-              {/* Resumo Azul Final */}
               <div className="bg-[#f0f7ff] p-8 rounded-3xl border border-[#dbeafe] flex flex-col md:flex-row justify-between items-center gap-8 shadow-sm">
                 <div className="w-full md:w-auto space-y-2">
                   <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest">VALOR DE ENTRADA / SINAL</label>
@@ -617,7 +643,6 @@ const Orders: React.FC = () => {
         </div>
       )}
 
-      {/* Detalhes do Pedido */}
       {isDetailsOpen && viewingOrder && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-[#f8fafc] rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in duration-300 relative flex flex-col max-h-[95vh]">

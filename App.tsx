@@ -27,6 +27,14 @@ import ArchivePage from './pages/Archive';
 import CalendarPage from './pages/Calendar';
 import SystemSettingsPage from './pages/SystemSettings';
 
+// Helper para formatar data local YYYY-MM-DD
+export const getLocalDateString = (date: Date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Contexto para o filtro de data global
 interface DateFilterContextType {
   startDate: string;
@@ -67,10 +75,8 @@ const AppContent = () => {
   const { startDate, setStartDate, endDate, setEndDate } = useDateFilter();
   const location = useLocation();
 
-  // Esconder filtro global em páginas que não fazem sentido
   const showGlobalFilter = ['/', '/pedidos', '/financeiro'].includes(location.pathname);
 
-  // Lógica para navegação de meses
   const currentMonthName = useMemo(() => {
     const date = new Date(startDate + 'T12:00:00');
     return date.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
@@ -80,8 +86,8 @@ const AppContent = () => {
     const current = new Date(startDate + 'T12:00:00');
     const newDate = new Date(current.getFullYear(), current.getMonth() + direction, 1);
     
-    const firstDay = new Date(newDate.getFullYear(), newDate.getMonth(), 1).toISOString().split('T')[0];
-    const lastDay = new Date(newDate.getFullYear(), newDate.getMonth() + 1, 0).toISOString().split('T')[0];
+    const firstDay = getLocalDateString(new Date(newDate.getFullYear(), newDate.getMonth(), 1));
+    const lastDay = getLocalDateString(new Date(newDate.getFullYear(), newDate.getMonth() + 1, 0));
     
     setStartDate(firstDay);
     setEndDate(lastDay);
@@ -89,7 +95,6 @@ const AppContent = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      {/* Sidebar */}
       <aside className="w-64 bg-[#2b2d42] text-white flex flex-col fixed h-full shadow-xl z-20">
         <div className="p-6 border-b border-slate-700">
           <h1 className="text-xl font-bold tracking-tight">GRÁFICA PRO</h1>
@@ -111,9 +116,7 @@ const AppContent = () => {
         </nav>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 ml-64 min-h-screen flex flex-col">
-        {/* Global Top Bar com Filtro estilizado conforme imagem */}
         <header className="bg-white border-b border-gray-200 h-20 sticky top-0 z-10 flex items-center justify-between px-8">
           <div className="flex items-center gap-4">
             <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest">
@@ -125,7 +128,6 @@ const AppContent = () => {
 
           {showGlobalFilter && (
             <div className="flex items-center gap-3 animate-in fade-in slide-in-from-top-1">
-              {/* Botão Anterior */}
               <button 
                 onClick={() => handleMonthChange(-1)}
                 className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-2xl text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:shadow-md transition-all active:scale-90"
@@ -133,7 +135,6 @@ const AppContent = () => {
                 <ChevronLeft size={20} />
               </button>
 
-              {/* Seletor Central */}
               <div className="flex items-center gap-4 bg-white border border-gray-100 rounded-[2rem] px-5 py-2.5 shadow-sm hover:shadow-md transition-shadow cursor-default">
                 <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
                   <CalendarIcon size={20} />
@@ -147,7 +148,6 @@ const AppContent = () => {
                 </div>
               </div>
 
-              {/* Botão Próximo */}
               <button 
                 onClick={() => handleMonthChange(1)}
                 className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-2xl text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:shadow-md transition-all active:scale-90"
@@ -179,8 +179,8 @@ const AppContent = () => {
 
 const App: React.FC = () => {
   const now = new Date();
-  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+  const firstDay = getLocalDateString(new Date(now.getFullYear(), now.getMonth(), 1));
+  const lastDay = getLocalDateString(new Date(now.getFullYear(), now.getMonth() + 1, 0));
   
   const [startDate, setStartDate] = useState(firstDay);
   const [endDate, setEndDate] = useState(lastDay);
