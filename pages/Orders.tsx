@@ -520,9 +520,20 @@ const Orders: React.FC = () => {
 
               {/* Seção Logística */}
               <div className="bg-white p-8 rounded-[2rem] border border-gray-200 space-y-6 shadow-sm">
-                <div className="flex items-center gap-2 text-blue-600">
-                  <Truck size={20} />
-                  <h4 className="text-[11px] font-black uppercase tracking-widest">Logística / Transportadora</h4>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-blue-600">
+                    <Truck size={20} />
+                    <h4 className="text-[11px] font-black uppercase tracking-widest">Logística / Transportadora</h4>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Data de Entrega Prometida</label>
+                    <input 
+                      type="date" 
+                      className="px-4 py-2 border border-blue-200 rounded-xl outline-none focus:ring-4 focus:ring-blue-500/10 text-xs font-bold text-blue-700 shadow-sm"
+                      value={formData.deliveryDate}
+                      onChange={e => setFormData({...formData, deliveryDate: e.target.value})}
+                    />
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
