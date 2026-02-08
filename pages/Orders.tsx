@@ -5,7 +5,8 @@ import {
   PlusCircle, User, DollarSign, Eye, Printer, Save, 
   UserPlus, PackagePlus, Box, Settings2, Minus, Calendar, CreditCard,
   CheckCircle2, MessageSquare, ClipboardList, FileText, Landmark, Keyboard, List,
-  AlertCircle, History, Paperclip, Upload, Phone, Truck, Trash, ChevronDown, ChevronUp, Package
+  AlertCircle, History, Paperclip, Upload, Phone, Truck, Trash, ChevronDown, ChevronUp, Package,
+  MapPin, Tag
 } from 'lucide-react';
 import { Order, OrderStatus, Client, Product, FinancialEntry, Account, SystemSettings, PaymentMethod } from '../types';
 import { generatePDF } from '../pdfService';
@@ -63,6 +64,8 @@ const Orders: React.FC = () => {
     shippingCost: 0,
     discount: 0,
     shippingCompany: '',
+    trackingNumber: '',
+    shippingType: 'Retirada',
     accountId: '',
     generalObservations: '',
     items: [] as OrderItem[],
@@ -103,7 +106,13 @@ const Orders: React.FC = () => {
     if (storedSettings) {
       const settings: SystemSettings = JSON.parse(storedSettings);
       setAccounts(settings.accounts || []);
-      setSystemPaymentMethods(settings.paymentMethods || []);
+      const methods = settings.paymentMethods || [];
+      setSystemPaymentMethods(methods);
+      
+      // Se estiver abrindo o modal de novo pedido e tiver métodos, define o primeiro como padrão
+      if (!editingOrderId && methods.length > 0 && formData.paymentMethod === 'Dinheiro') {
+        setFormData(prev => ({ ...prev, paymentMethod: methods[0].name }));
+      }
     }
   };
 
@@ -189,7 +198,7 @@ const Orders: React.FC = () => {
       total,
       entry: formData.entry,
       entryMethod: formData.paymentMethod,
-      date: getLocalDateString(), // DATA LOCAL
+      date: getLocalDateString(), 
       deliveryDate: formData.deliveryDate,
       items: formData.items,
       paidInstallmentIndices: [],
@@ -197,7 +206,14 @@ const Orders: React.FC = () => {
       installmentValue: installmentValue,
       firstInstallmentDate: formData.firstInstallmentDate,
       installmentIntervalDays: formData.installmentIntervalDays || 30,
-      archived: false
+      archived: false,
+      // Logística
+      shippingCost: formData.shippingCost,
+      discount: formData.discount,
+      shippingCompany: formData.shippingCompany,
+      trackingNumber: formData.trackingNumber,
+      shippingType: formData.shippingType,
+      generalObservations: formData.generalObservations
     };
 
     let newOrders = [];
@@ -343,6 +359,7 @@ const Orders: React.FC = () => {
                 </div>
               </div>
 
+              {/* Bloco de Produtos */}
               <div className="bg-[#f8fafc] p-6 rounded-2xl border border-gray-100 space-y-4">
                 <h4 className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">PRODUTOS / SERVIÇOS</h4>
                 
@@ -455,26 +472,107 @@ const Orders: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">VALOR DO FRETE (R$)</label>
-                  <input type="number" step="0.01" className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 text-xs font-bold text-slate-700 shadow-sm" value={formData.shippingCost || ''} onChange={e => setFormData({...formData, shippingCost: parseFloat(e.target.value) || 0})} />
+              {/* CARD DE TRANSPORTADORA / LOGÍSTICA */}
+              <div className="bg-[#f8fafc] p-6 rounded-2xl border border-gray-100 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Truck size={18} className="text-blue-600" />
+                  <h4 className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">LOGÍSTICA / TRANSPORTADORA</h4>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">VALOR DO DESCONTO (R$)</label>
-                  <input type="number" step="0.01" className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 text-xs font-bold text-slate-700 shadow-sm" value={formData.discount || ''} onChange={e => setFormData({...formData, discount: parseFloat(e.target.value) || 0})} />
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">TRANSPORTADORA</label>
+                    <input 
+                      type="text" 
+                      placeholder="Nome da empresa..."
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 bg-white text-xs font-bold text-slate-700 shadow-sm transition-all"
+                      value={formData.shippingCompany}
+                      onChange={e => setFormData({...formData, shippingCompany: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">TIPO DE ENVIO</label>
+                    <div className="relative">
+                      <select 
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 bg-white text-xs font-bold text-slate-700 shadow-sm appearance-none"
+                        value={formData.shippingType}
+                        onChange={e => setFormData({...formData, shippingType: e.target.value})}
+                      >
+                        <option value="Retirada">Retirada na Loja</option>
+                        <option value="Sedex">Correios (SEDEX)</option>
+                        <option value="PAC">Correios (PAC)</option>
+                        <option value="Motoboy">Motoboy / Delivery</option>
+                        <option value="Transportadora">Transportadora Privada</option>
+                        <option value="Outros">Outros</option>
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">CÓD. RASTREIO</label>
+                    <div className="relative">
+                      <Tag size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                      <input 
+                        type="text" 
+                        placeholder="Ex: BR123456789"
+                        className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 bg-white text-xs font-bold text-slate-700 shadow-sm"
+                        value={formData.trackingNumber}
+                        onChange={e => setFormData({...formData, trackingNumber: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">VALOR DO FRETE (R$)</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">R$</span>
+                      <input 
+                        type="number" step="0.01" 
+                        className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 text-xs font-bold text-slate-700 shadow-sm" 
+                        value={formData.shippingCost || ''} 
+                        onChange={e => setFormData({...formData, shippingCost: parseFloat(e.target.value) || 0})} 
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">VALOR DO DESCONTO (R$)</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">R$</span>
+                      <input 
+                        type="number" step="0.01" 
+                        className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 text-xs font-bold text-slate-700 shadow-sm" 
+                        value={formData.discount || ''} 
+                        onChange={e => setFormData({...formData, discount: parseFloat(e.target.value) || 0})} 
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
+              {/* Pagamento e Parcelas */}
               <div className="grid grid-cols-12 gap-6 items-end">
                 <div className="col-span-12 md:col-span-4 space-y-2">
                   <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">FORMA DE PAGAMENTO</label>
                   <div className="relative">
-                    <select className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none bg-white focus:border-blue-400 text-xs font-bold text-slate-700 appearance-none shadow-sm" value={formData.paymentMethod} onChange={e => setFormData({...formData, paymentMethod: e.target.value})}>
-                      <option value="Dinheiro">Dinheiro</option>
-                      <option value="PIX">PIX</option>
-                      <option value="Cartão">Cartão</option>
-                      <option value="Boleto">Boleto</option>
+                    <select 
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none bg-white focus:border-blue-400 text-xs font-bold text-slate-700 appearance-none shadow-sm" 
+                      value={formData.paymentMethod} 
+                      onChange={e => setFormData({...formData, paymentMethod: e.target.value})}
+                    >
+                      {systemPaymentMethods.length > 0 ? (
+                        systemPaymentMethods.map(m => (
+                          <option key={m.id} value={m.name}>{m.name}</option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="Dinheiro">Dinheiro</option>
+                          <option value="PIX">PIX</option>
+                          <option value="Cartão">Cartão</option>
+                          <option value="Boleto">Boleto</option>
+                        </>
+                      )}
                     </select>
                     <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   </div>
@@ -489,6 +587,7 @@ const Orders: React.FC = () => {
                 </div>
               </div>
 
+              {/* Resumo Azul Final */}
               <div className="bg-[#f0f7ff] p-8 rounded-3xl border border-[#dbeafe] flex flex-col md:flex-row justify-between items-center gap-8 shadow-sm">
                 <div className="w-full md:w-auto space-y-2">
                   <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest">VALOR DE ENTRADA / SINAL</label>
@@ -643,6 +742,7 @@ const Orders: React.FC = () => {
         </div>
       )}
 
+      {/* Detalhes do Pedido */}
       {isDetailsOpen && viewingOrder && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-[#f8fafc] rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in duration-300 relative flex flex-col max-h-[95vh]">
@@ -688,6 +788,27 @@ const Orders: React.FC = () => {
                   <p className="text-xl font-black text-[#b91c1c] mt-1">R$ {(viewingOrder.total - viewingOrder.entry).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                 </div>
               </div>
+              
+              {/* Info Logística Detalhes */}
+              {(viewingOrder.shippingCompany || viewingOrder.trackingNumber) && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Truck size={16} className="text-blue-600" />
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Informações de Logística</h4>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[9px] font-black text-gray-400 uppercase">Empresa / Tipo</p>
+                      <p className="text-xs font-bold text-slate-700">{viewingOrder.shippingCompany || viewingOrder.shippingType || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-gray-400 uppercase">Rastreio</p>
+                      <p className="text-xs font-mono font-bold text-blue-600">{viewingOrder.trackingNumber || 'Não informado'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-4 pt-4 border-t border-gray-50">
                 <div className="flex items-center gap-2 text-gray-500 mb-2">
                   <ShoppingCart size={16} />

@@ -69,6 +69,13 @@ export interface Order {
   firstInstallmentDate?: string;
   installmentIntervalDays?: number;
   paidInstallmentIndices?: number[];
+  // Novos campos de logística
+  shippingCost?: number;
+  discount?: number;
+  shippingCompany?: string;
+  trackingNumber?: string;
+  shippingType?: string;
+  generalObservations?: string;
 }
 
 export interface Account {
