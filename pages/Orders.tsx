@@ -6,7 +6,7 @@ import {
   UserPlus, PackagePlus, Box, Settings2, Minus, Calendar, CreditCard,
   CheckCircle2, MessageSquare, ClipboardList, FileText, Landmark, Keyboard, List,
   AlertCircle, History, Paperclip, Upload, Phone, Truck, Trash, ChevronDown, ChevronUp, Package,
-  MapPin, Tag
+  MapPin, Tag, ArrowUpCircle, ArrowDownCircle, UserCheck
 } from 'lucide-react';
 import { Order, OrderStatus, Client, Product, FinancialEntry, Account, SystemSettings, PaymentMethod } from '../types';
 import { generatePDF } from '../pdfService';
@@ -59,13 +59,13 @@ const Orders: React.FC = () => {
     deliveryDate: getLocalDateString(),
     status: OrderStatus.OPEN,
     priority: 'Normal',
-    paymentMethod: 'Dinheiro',
+    paymentMethod: 'DINHEIRO',
     entry: 0,
     shippingCost: 0,
     discount: 0,
     shippingCompany: '',
     trackingNumber: '',
-    shippingType: 'Retirada',
+    shippingType: 'Retirada na Loja',
     accountId: '',
     generalObservations: '',
     items: [] as OrderItem[],
@@ -109,9 +109,8 @@ const Orders: React.FC = () => {
       const methods = settings.paymentMethods || [];
       setSystemPaymentMethods(methods);
       
-      // Se estiver abrindo o modal de novo pedido e tiver métodos, define o primeiro como padrão
-      if (!editingOrderId && methods.length > 0 && formData.paymentMethod === 'Dinheiro') {
-        setFormData(prev => ({ ...prev, paymentMethod: methods[0].name }));
+      if (!editingOrderId && methods.length > 0) {
+        setFormData(prev => ({ ...prev, paymentMethod: methods[0].name.toUpperCase() }));
       }
     }
   };
@@ -132,6 +131,9 @@ const Orders: React.FC = () => {
     const isNotArchived = !o.archived;
     return matchesSearch && matchesPeriod && isNotArchived;
   });
+
+  const totalPaidInRange = filteredOrders.reduce((acc, o) => acc + o.entry, 0);
+  const totalPendingInRange = filteredOrders.reduce((acc, o) => acc + (o.total - o.entry), 0);
 
   const handleAddItem = () => {
     if (!currentItem.serviceName) return;
@@ -207,7 +209,6 @@ const Orders: React.FC = () => {
       firstInstallmentDate: formData.firstInstallmentDate,
       installmentIntervalDays: formData.installmentIntervalDays || 30,
       archived: false,
-      // Logística
       shippingCost: formData.shippingCost,
       discount: formData.discount,
       shippingCompany: formData.shippingCompany,
@@ -266,86 +267,129 @@ const Orders: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-2xl border-l-8 border-green-500 shadow-sm flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">Total Recebido (Período)</span>
+            <span className="text-3xl font-black text-slate-800 leading-none">R$ {totalPaidInRange.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+          </div>
+          <div className="p-3 bg-green-50 text-green-600 rounded-2xl">
+            <ArrowUpCircle size={32} />
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border-l-8 border-red-500 shadow-sm flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">Total a Receber (Saldo Pendente)</span>
+            <span className="text-3xl font-black text-slate-800 leading-none">R$ {totalPendingInRange.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+          </div>
+          <div className="p-3 bg-red-50 text-red-600 rounded-2xl">
+            <ArrowDownCircle size={32} />
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div className="flex-1 w-full lg:max-w-md relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input 
             type="text" 
-            placeholder="Buscar pedido..." 
-            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 bg-gray-50/50 text-sm"
+            placeholder="Buscar pedido por cliente ou número..." 
+            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-blue-500/10 bg-gray-50/50 text-sm font-medium"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
-        <button onClick={() => { setEditingOrderId(null); setIsModalOpen(true); }} className="bg-blue-600 text-white px-6 py-3.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 font-black text-xs uppercase shadow-lg shadow-blue-100 transition-all active:scale-95">
+        <button onClick={() => { setEditingOrderId(null); setIsModalOpen(true); }} className="bg-blue-600 text-white px-8 py-3.5 rounded-2xl flex items-center gap-3 hover:bg-blue-700 font-black text-xs uppercase shadow-xl shadow-blue-100 transition-all active:scale-95">
           <Plus size={18} /> Novo Pedido
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 border-b border-gray-200 text-[10px] font-black text-gray-500 uppercase tracking-widest">
-            <tr>
-              <th className="px-6 py-4">Nº</th>
-              <th className="px-6 py-4">Cliente</th>
-              <th className="px-6 py-4">Total</th>
-              <th className="px-6 py-4 text-center">Status</th>
-              <th className="px-6 py-4 text-right">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filteredOrders.length > 0 ? filteredOrders.map(o => (
-              <tr key={o.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-6 py-4 font-mono font-bold text-xs">#{o.orderNumber}</td>
-                <td className="px-6 py-4 font-bold text-xs uppercase">{o.clientName}</td>
-                <td className="px-6 py-4 font-black text-xs">R$ {o.total.toFixed(2)}</td>
-                <td className="px-6 py-4 text-center">
-                  <span className="text-[9px] font-black px-2 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 uppercase">{o.status}</span>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end items-center gap-4">
-                    <button onClick={() => handleOpenDetails(o)} className="text-slate-500 hover:scale-110 transition-transform"><Eye size={18} /></button>
-                    <button onClick={() => { if(confirm('Excluir?')) saveOrders(orders.filter(ord => ord.id !== o.id)) }} className="text-red-500 hover:scale-110 transition-transform"><Trash2 size={18} /></button>
-                  </div>
-                </td>
-              </tr>
-            )) : (
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 border-b border-gray-200 text-[10px] font-black text-slate-400 uppercase tracking-widest">
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">Nenhum pedido encontrado para o período ou busca selecionados.</td>
+                <th className="px-6 py-5">Nº Pedido</th>
+                <th className="px-6 py-5">Cliente</th>
+                <th className="px-6 py-5 text-right">Valor Total</th>
+                <th className="px-6 py-5 text-right">Saldo Devedor</th>
+                <th className="px-6 py-5 text-center">Status</th>
+                <th className="px-6 py-5 text-center">Ações</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredOrders.length > 0 ? filteredOrders.map(o => {
+                const balance = o.total - o.entry;
+                return (
+                  <tr key={o.id} className="hover:bg-slate-50 transition-colors group">
+                    <td className="px-6 py-5 font-mono font-bold text-xs text-slate-400">#{o.orderNumber}</td>
+                    <td className="px-6 py-5 font-bold text-xs uppercase text-slate-700">{o.clientName}</td>
+                    <td className="px-6 py-5 font-bold text-xs text-right text-slate-600">R$ {o.total.toFixed(2)}</td>
+                    <td className={`px-6 py-5 font-black text-xs text-right ${balance > 0.01 ? 'text-red-500' : 'text-green-600'}`}>
+                      R$ {balance.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      <span className="text-[9px] font-black px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-widest">{o.status}</span>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex justify-center items-center gap-2">
+                        <button onClick={() => handleOpenDetails(o)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="Ver Detalhes"><Eye size={18} /></button>
+                        <button onClick={() => generatePDF('PEDIDO', o, 'print')} className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-xl transition-all" title="Imprimir PDF"><Printer size={18} /></button>
+                        <button onClick={() => { if(confirm('Excluir pedido permanentemente?')) saveOrders(orders.filter(ord => ord.id !== o.id)) }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Excluir"><Trash2 size={18} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-20 text-center">
+                    <div className="flex flex-col items-center gap-3 opacity-30">
+                       <ShoppingCart size={48} className="text-slate-300" />
+                       <p className="text-sm font-black text-slate-400 uppercase tracking-widest italic">Nenhum pedido encontrado</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {isModalOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in zoom-in duration-200 my-4 border border-gray-200">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl overflow-hidden animate-in zoom-in duration-200 my-4 border border-gray-100 flex flex-col max-h-[98vh]">
+            
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-600 rounded-lg text-white">
-                  <PlusCircle size={20} />
+                <div className="p-2.5 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-100">
+                  <PlusCircle size={24} />
                 </div>
-                <h3 className="text-xl font-black text-[#1e293b] tracking-tight">Novo Pedido</h3>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight uppercase">Novo Pedido</h3>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={28} /></button>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-300 hover:text-gray-600 transition-colors p-2 hover:bg-slate-50 rounded-full">
+                <X size={32} />
+              </button>
             </div>
 
-            <form onSubmit={handleSubmitOrder} className="p-8 space-y-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <label className="text-sm font-bold text-slate-700">Cliente</label>
-                  <button 
+            <form onSubmit={handleSubmitOrder} className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar bg-white">
+              
+              {/* Seção Cliente */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-end">
+                   <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Cliente</label>
+                   <button 
                     type="button" 
                     onClick={() => setIsClientModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 border border-[#2563eb] text-[#2563eb] bg-white rounded-lg text-xs font-bold hover:bg-blue-50 transition-all shadow-sm"
+                    className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 bg-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
                   >
-                    <UserPlus size={16} /> Novo Cliente
+                    <UserPlus size={14} /> Novo Cliente
                   </button>
                 </div>
-                <div className="relative">
+                <div className="relative group">
                   <select 
-                    className="w-full px-4 py-4 border border-gray-200 rounded-xl outline-none bg-white focus:border-blue-400 text-sm font-medium text-slate-500 appearance-none shadow-sm"
+                    className="w-full px-5 py-4 border border-gray-200 rounded-2xl outline-none bg-white focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-700 appearance-none shadow-sm transition-all"
                     value={formData.clientId}
                     onChange={e => {
                       const client = clients.find(c => c.id === e.target.value);
@@ -355,25 +399,23 @@ const Orders: React.FC = () => {
                     <option value="">Selecione um cliente existente</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
-                  <ChevronDown size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <ChevronDown size={20} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-focus-within:text-blue-600 transition-colors" />
                 </div>
               </div>
 
-              {/* Bloco de Produtos */}
-              <div className="bg-[#f8fafc] p-6 rounded-2xl border border-gray-100 space-y-4">
-                <h4 className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">PRODUTOS / SERVIÇOS</h4>
+              {/* Seção Produtos / Serviços */}
+              <div className="bg-white p-8 rounded-[2rem] border border-gray-200 space-y-6 shadow-sm">
+                <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Produtos / Serviços</h4>
                 
-                <div className="flex flex-col md:flex-row items-end gap-3">
-                  <div className="flex-1 w-full space-y-1.5">
-                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">ITEM (BUSCA OU MANUAL)</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                        <Search size={16} />
-                      </div>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                  <div className="md:col-span-7 space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Item (Busca ou Manual)</label>
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input 
                         type="text" 
                         placeholder="Procure um produto ou digite..."
-                        className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 bg-white text-xs font-medium text-slate-700 placeholder:text-slate-400 shadow-sm transition-all"
+                        className="w-full pl-11 pr-4 py-4 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-700 placeholder:text-slate-300 shadow-sm"
                         value={currentItem.serviceName}
                         onFocus={() => setShowProductDropdown(true)}
                         onChange={e => {
@@ -381,25 +423,19 @@ const Orders: React.FC = () => {
                           setShowProductDropdown(true);
                         }}
                       />
-                      
                       {showProductDropdown && currentItem.serviceName.length > 0 && filteredProductsBySearch.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                        <div className="absolute top-full left-0 right-0 mt-3 bg-white border border-gray-100 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                            {filteredProductsBySearch.map(p => (
                              <div 
                                key={p.id} 
-                               className="px-4 py-3 hover:bg-slate-50 cursor-pointer flex justify-between items-center border-b border-gray-50 last:border-none"
+                               className="px-5 py-4 hover:bg-blue-50 cursor-pointer flex justify-between items-center border-b border-gray-50 last:border-none"
                                onClick={() => {
-                                 setCurrentItem({
-                                   ...currentItem,
-                                   serviceId: p.id,
-                                   serviceName: p.name,
-                                   price: p.salePrice
-                                 });
+                                 setCurrentItem({...currentItem, serviceId: p.id, serviceName: p.name, price: p.salePrice});
                                  setShowProductDropdown(false);
                                }}
                              >
-                               <span className="text-xs font-bold text-slate-700 uppercase">{p.name}</span>
-                               <span className="text-[10px] font-black text-blue-600">R$ {p.salePrice.toFixed(2)}</span>
+                               <span className="text-[11px] font-black text-slate-700 uppercase">{p.name}</span>
+                               <span className="text-[11px] font-black text-blue-600">R$ {p.salePrice.toFixed(2)}</span>
                              </div>
                            ))}
                         </div>
@@ -407,64 +443,65 @@ const Orders: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="w-full md:w-28 space-y-1.5">
-                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">QTD</label>
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center block">QTD</label>
                     <input 
                       type="number" 
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 bg-white text-xs font-bold text-slate-700 text-center shadow-sm"
+                      className="w-full px-4 py-4 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 text-sm font-black text-slate-700 text-center shadow-sm"
                       value={currentItem.quantity}
                       onChange={e => setCurrentItem({...currentItem, quantity: parseInt(e.target.value) || 1})}
                     />
                   </div>
 
-                  <div className="w-full md:w-36 space-y-1.5">
-                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">PREÇO UNIT.</label>
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Preço Unit.</label>
                     <div className="relative">
                       <input 
                         type="number" step="0.01"
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 bg-white text-xs font-bold text-slate-700 shadow-sm"
+                        className="w-full px-4 py-4 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 text-sm font-black text-slate-700 pr-8 shadow-sm"
                         value={currentItem.price || ''}
                         onChange={e => setCurrentItem({...currentItem, price: parseFloat(e.target.value) || 0})}
                       />
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col text-slate-400 pointer-events-none scale-75">
-                         <ChevronUp size={14} />
-                         <ChevronDown size={14} />
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col text-slate-300">
+                        <ChevronUp size={12} />
+                        <ChevronDown size={12} />
                       </div>
                     </div>
                   </div>
 
-                  <button 
-                    type="button" 
-                    onClick={handleAddItem} 
-                    className="w-full md:w-16 h-12 bg-[#0f172a] text-white rounded-xl flex items-center justify-center hover:bg-[#1e293b] transition-all active:scale-95 shadow-md shrink-0"
-                  >
-                    <Plus size={24} />
-                  </button>
+                  <div className="md:col-span-1">
+                    <button 
+                      type="button" 
+                      onClick={handleAddItem} 
+                      className="w-full h-[58px] bg-[#0f172a] text-white rounded-2xl flex items-center justify-center hover:bg-slate-800 transition-all active:scale-95 shadow-xl shadow-slate-200"
+                    >
+                      <Plus size={28} />
+                    </button>
+                  </div>
                 </div>
 
-                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm mt-4">
+                <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm">
                   <table className="w-full text-left">
-                    <thead className="bg-[#f1f5f9] border-b border-gray-100">
+                    <thead className="bg-[#f8fafc] border-b border-gray-100">
                       <tr>
-                        <th className="px-6 py-4 text-[10px] font-black text-[#64748b] uppercase tracking-wider">ITEM NO CARRINHO</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-[#64748b] uppercase tracking-wider text-center">QTD</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-[#64748b] uppercase tracking-wider text-right pr-12">SUBTOTAL</th>
-                        <th className="px-6 py-4"></th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Item no Carrinho</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">QTD</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Subtotal</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-gray-50 min-h-[120px]">
                       {formData.items.length > 0 ? formData.items.map(item => (
-                        <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-6 py-4 text-xs font-black text-slate-700 uppercase">{item.serviceName}</td>
-                          <td className="px-6 py-4 text-xs font-black text-slate-700 text-center">{item.quantity}</td>
-                          <td className="px-6 py-4 text-xs font-black text-slate-700 text-right pr-12">R$ {(item.price * item.quantity).toFixed(2)}</td>
-                          <td className="px-6 py-4 text-center">
-                            <button type="button" onClick={() => setFormData({...formData, items: formData.items.filter(i => i.id !== item.id)})} className="text-red-300 hover:text-red-500 p-2"><Trash size={16} /></button>
+                        <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-5 text-xs font-black text-slate-700 uppercase flex items-center gap-3">
+                            <button type="button" onClick={() => setFormData({...formData, items: formData.items.filter(i => i.id !== item.id)})} className="text-red-300 hover:text-red-500 transition-colors"><Trash size={14} /></button>
+                            {item.serviceName}
                           </td>
+                          <td className="px-6 py-5 text-xs font-black text-slate-600 text-center">{item.quantity}</td>
+                          <td className="px-6 py-5 text-xs font-black text-slate-800 text-right">R$ {(item.price * item.quantity).toFixed(2)}</td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan={4} className="px-6 py-10 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest italic opacity-50">Nenhum item adicionado ao pedido</td>
+                          <td colSpan={3} className="px-6 py-16 text-center text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] italic">Nenhum item adicionado ao pedido</td>
                         </tr>
                       )}
                     </tbody>
@@ -472,77 +509,76 @@ const Orders: React.FC = () => {
                 </div>
               </div>
 
-              {/* CARD DE TRANSPORTADORA / LOGÍSTICA */}
-              <div className="bg-[#f8fafc] p-6 rounded-2xl border border-gray-100 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Truck size={18} className="text-blue-600" />
-                  <h4 className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">LOGÍSTICA / TRANSPORTADORA</h4>
+              {/* Seção Logística */}
+              <div className="bg-white p-8 rounded-[2rem] border border-gray-200 space-y-6 shadow-sm">
+                <div className="flex items-center gap-2 text-blue-600">
+                  <Truck size={20} />
+                  <h4 className="text-[11px] font-black uppercase tracking-widest">Logística / Transportadora</h4>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">TRANSPORTADORA</label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transportadora</label>
                     <input 
                       type="text" 
                       placeholder="Nome da empresa..."
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 bg-white text-xs font-bold text-slate-700 shadow-sm transition-all"
-                      value={formData.shippingCompany}
-                      onChange={e => setFormData({...formData, shippingCompany: e.target.value})}
+                      className="w-full px-5 py-4 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-700 placeholder:text-slate-300 shadow-sm" 
+                      value={formData.shippingCompany} 
+                      onChange={e => setFormData({...formData, shippingCompany: e.target.value})} 
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">TIPO DE ENVIO</label>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Envio</label>
                     <div className="relative">
                       <select 
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 bg-white text-xs font-bold text-slate-700 shadow-sm appearance-none"
+                        className="w-full px-5 py-4 border border-gray-200 rounded-2xl outline-none bg-white focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-700 appearance-none shadow-sm"
                         value={formData.shippingType}
                         onChange={e => setFormData({...formData, shippingType: e.target.value})}
                       >
-                        <option value="Retirada">Retirada na Loja</option>
-                        <option value="Sedex">Correios (SEDEX)</option>
-                        <option value="PAC">Correios (PAC)</option>
-                        <option value="Motoboy">Motoboy / Delivery</option>
-                        <option value="Transportadora">Transportadora Privada</option>
-                        <option value="Outros">Outros</option>
+                        <option value="Retirada na Loja">Retirada na Loja</option>
+                        <option value="Motoboy">Motoboy</option>
+                        <option value="Correios SEDEX">Correios SEDEX</option>
+                        <option value="Correios PAC">Correios PAC</option>
+                        <option value="Transportadora">Transportadora</option>
                       </select>
-                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <ChevronDown size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">CÓD. RASTREIO</label>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cód. Rastreio</label>
                     <div className="relative">
-                      <Tag size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                      <Tag size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
                       <input 
                         type="text" 
                         placeholder="Ex: BR123456789"
-                        className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 bg-white text-xs font-bold text-slate-700 shadow-sm"
-                        value={formData.trackingNumber}
-                        onChange={e => setFormData({...formData, trackingNumber: e.target.value})}
+                        className="w-full pl-11 pr-4 py-4 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-700 placeholder:text-slate-300 shadow-sm" 
+                        value={formData.trackingNumber} 
+                        onChange={e => setFormData({...formData, trackingNumber: e.target.value})} 
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">VALOR DO FRETE (R$)</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor do Frete (R$)</label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">R$</span>
+                      <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">R$</span>
                       <input 
                         type="number" step="0.01" 
-                        className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 text-xs font-bold text-slate-700 shadow-sm" 
+                        className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 text-sm font-black text-slate-700 shadow-sm" 
                         value={formData.shippingCost || ''} 
                         onChange={e => setFormData({...formData, shippingCost: parseFloat(e.target.value) || 0})} 
                       />
                     </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">VALOR DO DESCONTO (R$)</label>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor do Desconto (R$)</label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">R$</span>
+                      <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">R$</span>
                       <input 
                         type="number" step="0.01" 
-                        className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 text-xs font-bold text-slate-700 shadow-sm" 
+                        className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 text-sm font-black text-slate-700 shadow-sm" 
                         value={formData.discount || ''} 
                         onChange={e => setFormData({...formData, discount: parseFloat(e.target.value) || 0})} 
                       />
@@ -551,190 +587,84 @@ const Orders: React.FC = () => {
                 </div>
               </div>
 
-              {/* Pagamento e Parcelas */}
-              <div className="grid grid-cols-12 gap-6 items-end">
-                <div className="col-span-12 md:col-span-4 space-y-2">
-                  <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">FORMA DE PAGAMENTO</label>
+              {/* Seção Pagamento */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Forma de Pagamento</label>
                   <div className="relative">
                     <select 
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none bg-white focus:border-blue-400 text-xs font-bold text-slate-700 appearance-none shadow-sm" 
-                      value={formData.paymentMethod} 
+                      className="w-full px-5 py-4 border border-gray-200 rounded-2xl outline-none bg-white focus:ring-4 focus:ring-blue-500/10 text-xs font-black text-slate-700 appearance-none uppercase shadow-sm"
+                      value={formData.paymentMethod}
                       onChange={e => setFormData({...formData, paymentMethod: e.target.value})}
                     >
                       {systemPaymentMethods.length > 0 ? (
-                        systemPaymentMethods.map(m => (
-                          <option key={m.id} value={m.name}>{m.name}</option>
-                        ))
+                        systemPaymentMethods.map(m => <option key={m.id} value={m.name.toUpperCase()}>{m.name.toUpperCase()}</option>)
                       ) : (
-                        <>
-                          <option value="Dinheiro">Dinheiro</option>
-                          <option value="PIX">PIX</option>
-                          <option value="Cartão">Cartão</option>
-                          <option value="Boleto">Boleto</option>
-                        </>
+                        <option value="DINHEIRO">DINHEIRO</option>
                       )}
                     </select>
-                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <ChevronDown size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   </div>
                 </div>
-                <div className="col-span-6 md:col-span-4 space-y-2">
-                  <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">Nº DE PARCELAS (SALDO)</label>
-                  <input type="number" min="1" className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 text-xs font-bold text-slate-700 shadow-sm" value={formData.installmentsCount} onChange={e => setFormData({...formData, installmentsCount: parseInt(e.target.value) || 1})} />
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nº de Parcelas (Saldo)</label>
+                  <input 
+                    type="number" 
+                    className="w-full px-5 py-4 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 text-sm font-black text-slate-700 shadow-sm"
+                    value={formData.installmentsCount}
+                    onChange={e => setFormData({...formData, installmentsCount: parseInt(e.target.value) || 1})}
+                  />
                 </div>
-                <div className="col-span-6 md:col-span-4 space-y-2">
-                  <label className="text-[10px] font-black text-[#64748b] uppercase tracking-widest">DATA DA 1ª PARCELA</label>
-                  <input type="date" className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 text-xs font-bold text-slate-700 shadow-sm" value={formData.firstInstallmentDate} onChange={e => setFormData({...formData, firstInstallmentDate: e.target.value})} />
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data da 1ª Parcela</label>
+                  <div className="relative">
+                    <input 
+                      type="date" 
+                      className="w-full px-5 py-4 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-700 shadow-sm appearance-none"
+                      value={formData.firstInstallmentDate}
+                      onChange={e => setFormData({...formData, firstInstallmentDate: e.target.value})}
+                    />
+                    <Calendar size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
-              {/* Resumo Azul Final */}
-              <div className="bg-[#f0f7ff] p-8 rounded-3xl border border-[#dbeafe] flex flex-col md:flex-row justify-between items-center gap-8 shadow-sm">
-                <div className="w-full md:w-auto space-y-2">
-                  <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest">VALOR DE ENTRADA / SINAL</label>
-                  <div className="bg-white border-2 border-blue-200 rounded-2xl flex items-center px-6 py-4 w-full md:w-64">
-                    <span className="text-blue-500 font-black mr-4 text-xl">$</span>
-                    <input type="number" step="0.01" className="w-full outline-none text-2xl font-black text-blue-700 bg-transparent" value={formData.entry || ''} onChange={e => setFormData({...formData, entry: parseFloat(e.target.value) || 0})} />
+              {/* Resumo Final (Painel Azul igual à imagem) */}
+              <div className="bg-[#f0f7ff] p-10 rounded-[2.5rem] border border-blue-100 flex flex-col md:flex-row justify-between items-center gap-8 shadow-sm">
+                <div className="w-full md:max-w-xs space-y-4">
+                  <label className="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em]">Valor de Entrada / Sinal</label>
+                  <div className="bg-white border-2 border-blue-200 rounded-2xl flex items-center px-6 py-4 shadow-sm">
+                    <span className="text-blue-500 font-black mr-4 text-2xl">$</span>
+                    <input 
+                      type="number" step="0.01" 
+                      className="w-full outline-none text-2xl font-black text-slate-500 bg-transparent placeholder:text-slate-300" 
+                      value={formData.entry || ''} 
+                      placeholder="0,00"
+                      onChange={e => setFormData({...formData, entry: parseFloat(e.target.value) || 0})} 
+                    />
                   </div>
                 </div>
                 <div className="text-center md:text-right space-y-1">
-                  <p className="text-[10px] font-black text-[#94a3b8] uppercase tracking-widest">TOTAL DO PEDIDO</p>
-                  <p className="text-5xl font-black text-[#0f172a] tracking-tighter">R$ {calculateTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                  <p className="text-xs font-black text-red-500 uppercase mt-1">FALTA RECEBER: R$ {(calculateTotal() - (formData.entry || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Total do Pedido</p>
+                  <p className="text-7xl font-black text-[#0f172a] tracking-tighter leading-none">R$ {calculateTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                  <p className="text-[11px] font-black text-red-500 uppercase mt-4 tracking-widest text-center md:text-right">Falta Receber: R$ {(calculateTotal() - (formData.entry || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                 </div>
               </div>
 
-              <div className="flex justify-center md:justify-end gap-4 pt-6">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-12 py-4 border border-gray-200 text-[#64748b] rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all">CANCELAR</button>
-                <button type="submit" className="px-12 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-3 active:scale-95 hover:bg-blue-700 transition-all"><ClipboardList size={18} /> CONFIRMAR PEDIDO</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Cadastro Rápido de Cliente */}
-      {isClientModalOpen && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in duration-200 my-8">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
-              <h3 className="text-xl font-bold text-[#1e293b]">Novo Cliente</h3>
-              <button 
-                onClick={() => setIsClientModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
-              >
-                <X size={24} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleQuickAddClient} className="p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-slate-700">Nome Completo *</label>
-                  <input 
-                    required 
-                    type="text" 
-                    placeholder="Nome do cliente"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 transition-colors placeholder:text-gray-300" 
-                    value={clientFormData.name} 
-                    onChange={e => setClientFormData({...clientFormData, name: e.target.value})} 
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-slate-700">Telefone</label>
-                  <input 
-                    type="text" 
-                    placeholder="(00) 00000-0000"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 transition-colors placeholder:text-gray-300" 
-                    value={clientFormData.phone} 
-                    onChange={e => setClientFormData({...clientFormData, phone: formatPhone(e.target.value)})} 
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-slate-700">Email</label>
-                  <input 
-                    type="email" 
-                    placeholder="email@exemplo.com"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 transition-colors placeholder:text-gray-300" 
-                    value={clientFormData.email} 
-                    onChange={e => setClientFormData({...clientFormData, email: e.target.value})} 
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-slate-700">CPF/CNPJ</label>
-                  <input 
-                    type="text" 
-                    placeholder="000.000.000-00"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 transition-colors placeholder:text-gray-300" 
-                    value={clientFormData.document} 
-                    onChange={e => setClientFormData({...clientFormData, document: e.target.value})} 
-                  />
-                </div>
-                <div className="col-span-1 md:col-span-2 space-y-1.5">
-                  <label className="block text-sm font-semibold text-slate-700">Responsável</label>
-                  <input 
-                    type="text" 
-                    placeholder="Nome do responsável pelo cliente"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 transition-colors placeholder:text-gray-300" 
-                    value={clientFormData.responsible} 
-                    onChange={e => setClientFormData({...clientFormData, responsible: e.target.value})} 
-                  />
-                </div>
-                <div className="col-span-1 md:col-span-2 space-y-1.5">
-                  <label className="block text-sm font-semibold text-slate-700">Endereço</label>
-                  <input 
-                    type="text" 
-                    placeholder="Rua e número"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 transition-colors placeholder:text-gray-300" 
-                    value={clientFormData.address} 
-                    onChange={e => setClientFormData({...clientFormData, address: e.target.value})} 
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-slate-700">Bairro</label>
-                  <input 
-                    type="text" 
-                    placeholder="Bairro"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 transition-colors placeholder:text-gray-300" 
-                    value={clientFormData.neighborhood} 
-                    onChange={e => setClientFormData({...clientFormData, neighborhood: e.target.value})} 
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-slate-700">Cidade</label>
-                  <input 
-                    type="text" 
-                    placeholder="Cidade"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 transition-colors placeholder:text-gray-300" 
-                    value={clientFormData.city} 
-                    onChange={e => setClientFormData({...clientFormData, city: e.target.value})} 
-                  />
-                </div>
-                <div className="col-span-1 md:col-span-2 space-y-1.5">
-                  <label className="block text-sm font-semibold text-slate-700">Observações</label>
-                  <textarea 
-                    rows={4}
-                    placeholder="Informações adicionais sobre o cliente"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-blue-400 transition-colors resize-none placeholder:text-gray-400" 
-                    value={clientFormData.observations} 
-                    onChange={e => setClientFormData({...clientFormData, observations: e.target.value})} 
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4">
+              {/* Footer Ações */}
+              <div className="flex flex-col md:flex-row justify-center gap-4 pt-10">
                 <button 
                   type="button" 
-                  onClick={() => setIsClientModalOpen(false)} 
-                  className="px-8 py-3 border border-gray-300 text-slate-700 rounded-xl font-bold text-sm hover:bg-gray-50 transition-colors"
+                  onClick={() => setIsModalOpen(false)} 
+                  className="px-16 py-4 border border-gray-200 text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all bg-white shadow-sm"
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit" 
-                  className="px-8 py-3 bg-[#82cf9e] text-white rounded-xl font-bold text-sm shadow-md hover:bg-[#6fb98d] transition-all flex items-center gap-2"
+                  className="px-16 py-4 bg-[#2563eb] text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-200 flex items-center justify-center gap-3 hover:bg-blue-700 transition-all active:scale-95"
                 >
-                  <Save size={18} />
-                  Salvar
+                  <FileText size={20} /> Confirmar Pedido
                 </button>
               </div>
             </form>
@@ -742,89 +672,237 @@ const Orders: React.FC = () => {
         </div>
       )}
 
-      {/* Detalhes do Pedido */}
+      {/* MODAL NOVO CLIENTE (RE-ESTILIZADO IGUAL À IMAGEM) */}
+      {isClientModalOpen && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in duration-200 my-8 border border-gray-100 flex flex-col">
+            {/* Header Estilizado */}
+            <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-white sticky top-0 z-10">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-green-50 text-green-600 rounded-2xl">
+                  <UserCheck size={28} strokeWidth={2} />
+                </div>
+                <h3 className="text-xl font-black text-[#1e293b] uppercase tracking-tight">NOVO CLIENTE</h3>
+              </div>
+              <button 
+                onClick={() => setIsClientModalOpen(false)}
+                className="text-gray-300 hover:text-gray-600 transition-colors p-2 hover:bg-slate-50 rounded-full"
+              >
+                <X size={32} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleQuickAddClient} className="p-10 space-y-10 bg-white">
+              {/* Grid 1: Nome e Telefone */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">NOME COMPLETO *</label>
+                  <input 
+                    required 
+                    type="text" 
+                    placeholder="Ex: João da Silva"
+                    className="w-full px-6 py-4.5 bg-slate-50/50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-green-500/10 transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-sm" 
+                    value={clientFormData.name} 
+                    onChange={e => setClientFormData({...clientFormData, name: e.target.value})} 
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">TELEFONE DE CONTATO</label>
+                  <input 
+                    type="text" 
+                    placeholder="(00) 00000-0000"
+                    className="w-full px-6 py-4.5 bg-slate-50/50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-green-500/10 transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-sm" 
+                    value={clientFormData.phone} 
+                    onChange={e => setClientFormData({...clientFormData, phone: formatPhone(e.target.value)})} 
+                  />
+                </div>
+              </div>
+
+              {/* Grid 2: Email e CPF/CNPJ */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">EMAIL PRINCIPAL</label>
+                  <input 
+                    type="email" 
+                    placeholder="email@empresa.com"
+                    className="w-full px-6 py-4.5 bg-slate-50/50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-green-500/10 transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-sm" 
+                    value={clientFormData.email} 
+                    onChange={e => setClientFormData({...clientFormData, email: e.target.value})} 
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">CPF / CNPJ</label>
+                  <input 
+                    type="text" 
+                    placeholder="000.000.000-00"
+                    className="w-full px-6 py-4.5 bg-slate-50/50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-green-500/10 transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-sm" 
+                    value={clientFormData.document} 
+                    onChange={e => setClientFormData({...clientFormData, document: e.target.value})} 
+                  />
+                </div>
+              </div>
+
+              {/* Linha: Responsável */}
+              <div className="space-y-3">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">NOME DO RESPONSÁVEL (OPCIONAL)</label>
+                <input 
+                  type="text" 
+                  className="w-full px-6 py-4.5 bg-slate-50/50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-green-500/10 transition-all font-bold text-slate-700 shadow-sm" 
+                  value={clientFormData.responsible} 
+                  onChange={e => setClientFormData({...clientFormData, responsible: e.target.value})} 
+                />
+              </div>
+
+              {/* Linha: Endereço com Ícone */}
+              <div className="space-y-3">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">ENDEREÇO DE COBRANÇA / ENTREGA</label>
+                <div className="relative">
+                  <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300">
+                    <MapPin size={20} />
+                  </div>
+                  <input 
+                    type="text" 
+                    placeholder="Rua, Número, Complemento"
+                    className="w-full pl-14 pr-6 py-4.5 bg-slate-50/50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-green-500/10 transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-sm" 
+                    value={clientFormData.address} 
+                    onChange={e => setClientFormData({...clientFormData, address: e.target.value})} 
+                  />
+                </div>
+              </div>
+
+              {/* Grid 3: Bairro e Cidade */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">BAIRRO</label>
+                  <input 
+                    type="text" 
+                    className="w-full px-6 py-4.5 bg-slate-50/50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-green-500/10 transition-all font-bold text-slate-700 shadow-sm" 
+                    value={clientFormData.neighborhood} 
+                    onChange={e => setClientFormData({...clientFormData, neighborhood: e.target.value})} 
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">CIDADE</label>
+                  <input 
+                    type="text" 
+                    className="w-full px-6 py-4.5 bg-slate-50/50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-green-500/10 transition-all font-bold text-slate-700 shadow-sm" 
+                    value={clientFormData.city} 
+                    onChange={e => setClientFormData({...clientFormData, city: e.target.value})} 
+                  />
+                </div>
+              </div>
+
+              {/* Linha: Observações */}
+              <div className="space-y-3">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">OBSERVAÇÕES IMPORTANTES</label>
+                <textarea 
+                  rows={4}
+                  placeholder="Informações relevantes para o atendimento..."
+                  className="w-full px-6 py-5 bg-slate-50/50 border border-gray-200 rounded-[2rem] outline-none focus:ring-4 focus:ring-green-500/10 transition-all font-medium text-slate-700 resize-none shadow-sm placeholder:text-slate-300" 
+                  value={clientFormData.observations} 
+                  onChange={e => setClientFormData({...clientFormData, observations: e.target.value})} 
+                />
+              </div>
+
+              {/* Footer de Ações Estilizado */}
+              <div className="flex flex-col md:flex-row justify-end items-center gap-10 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setIsClientModalOpen(false)} 
+                  className="text-slate-400 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:text-slate-600 transition-all active:scale-95"
+                >
+                  DESCARTAR
+                </button>
+                <button 
+                  type="submit" 
+                  className="w-full md:w-auto px-16 py-5 bg-[#10a34a] text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl shadow-green-100 hover:bg-[#0e8a3e] transition-all active:scale-95 flex items-center justify-center gap-3"
+                >
+                  <Save size={20} />
+                  SALVAR CADASTRO
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {isDetailsOpen && viewingOrder && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-[#f8fafc] rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in duration-300 relative flex flex-col max-h-[95vh]">
+          <div className="bg-[#f8fafc] rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in duration-300 relative flex flex-col max-h-[95vh] border border-gray-200">
             <div className="px-8 py-6 bg-white border-b border-gray-100 flex justify-between items-start sticky top-0 z-10">
               <div className="flex flex-col">
-                <h3 className="text-2xl font-bold text-[#1e293b]">{viewingOrder.clientName}</h3>
-                <div className="flex items-center gap-1.5 text-gray-400 text-sm mt-1 font-medium">
-                  <Phone size={14} />
-                  <span>{viewingOrder.clientPhone || '(00) 00000-0000'}</span>
+                <h3 className="text-2xl font-black text-[#1e293b] uppercase tracking-tight">{viewingOrder.clientName}</h3>
+                <div className="flex items-center gap-1.5 text-gray-400 text-sm mt-1 font-bold">
+                  <Phone size={14} className="text-blue-500" />
+                  <span>{viewingOrder.clientPhone || 'Sem telefone'}</span>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-2">
                 <div className="text-right">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nº PEDIDO</p>
-                  <p className="text-xs font-mono font-bold text-slate-500">#{viewingOrder.orderNumber}</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">PEDIDO Nº</p>
+                  <p className="text-sm font-mono font-black text-slate-500">#{viewingOrder.orderNumber}</p>
                 </div>
-                <span className="bg-green-100 text-green-700 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter border border-green-200">
+                <span className="bg-blue-600 text-white text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest border border-blue-500 shadow-lg shadow-blue-100">
                   {viewingOrder.status}
                 </span>
               </div>
-              <button onClick={() => setIsDetailsOpen(false)} className="absolute top-4 right-4 text-gray-400 p-1"><X size={24} /></button>
+              <button onClick={() => setIsDetailsOpen(false)} className="absolute top-4 right-4 text-gray-300 p-2 hover:bg-slate-50 rounded-full transition-all"><X size={28} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
-              <div className="bg-[#fff7ed] border border-[#ffedd5] rounded-xl p-5 flex justify-between items-center shadow-sm">
+              <div className="bg-[#fff7ed] border border-[#ffedd5] rounded-3xl p-6 flex justify-between items-center shadow-inner">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-[#9a3412] uppercase tracking-wide">Status do Pagamento</p>
-                  <h4 className="text-2xl font-black text-[#7c2d12]">
-                    {(viewingOrder.total - viewingOrder.entry) <= 0.01 ? 'Pago' : viewingOrder.entry > 0 ? 'Parcial' : 'Pendente'}
+                  <p className="text-[10px] font-black text-[#9a3412] uppercase tracking-widest">SITUAÇÃO FINANCEIRA</p>
+                  <h4 className="text-2xl font-black text-[#7c2d12] uppercase">
+                    {(viewingOrder.total - viewingOrder.entry) <= 0.01 ? 'QUITADO' : viewingOrder.entry > 0 ? 'PARCIALMENTE PAGO' : 'AGUARDANDO PAGTO'}
                   </h4>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-bold text-[#9a3412] uppercase tracking-wide">Valor Total</p>
+                  <p className="text-[10px] font-black text-[#9a3412] uppercase tracking-widest">VALOR DO PEDIDO</p>
                   <p className="text-2xl font-black text-[#7c2d12]">R$ {viewingOrder.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-[#f0fdf4] border border-[#dcfce7] rounded-xl p-4 shadow-sm">
-                  <p className="text-[10px] font-bold text-[#166534] uppercase tracking-wide">Valor Pago</p>
-                  <p className="text-xl font-black text-[#15803d] mt-1">R$ {viewingOrder.entry.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                <div className="bg-green-50/50 border border-green-100 rounded-3xl p-5 shadow-sm text-center">
+                  <p className="text-[10px] font-black text-green-600 uppercase tracking-widest">AMORTIZADO</p>
+                  <p className="text-xl font-black text-green-700 mt-1">R$ {viewingOrder.entry.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                 </div>
-                <div className="bg-[#fef2f2] border border-[#fee2e2] rounded-xl p-4 shadow-sm">
-                  <p className="text-[10px] font-bold text-[#991b1b] uppercase tracking-wide">Valor Restante</p>
-                  <p className="text-xl font-black text-[#b91c1c] mt-1">R$ {(viewingOrder.total - viewingOrder.entry).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                <div className="bg-red-50/50 border border-red-100 rounded-3xl p-5 shadow-sm text-center">
+                  <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">SALDO DEVEDOR</p>
+                  <p className="text-xl font-black text-red-700 mt-1">R$ {(viewingOrder.total - viewingOrder.entry).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                 </div>
               </div>
               
-              {/* Info Logística Detalhes */}
-              {(viewingOrder.shippingCompany || viewingOrder.trackingNumber) && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Truck size={16} className="text-blue-600" />
-                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Informações de Logística</h4>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-[9px] font-black text-gray-400 uppercase">Empresa / Tipo</p>
-                      <p className="text-xs font-bold text-slate-700">{viewingOrder.shippingCompany || viewingOrder.shippingType || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] font-black text-gray-400 uppercase">Rastreio</p>
-                      <p className="text-xs font-mono font-bold text-blue-600">{viewingOrder.trackingNumber || 'Não informado'}</p>
-                    </div>
-                  </div>
+              <div className="space-y-4 pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-2 text-slate-800 mb-2">
+                  <List size={18} className="text-blue-600" />
+                  <h4 className="text-[10px] font-black uppercase tracking-widest">ITENS DESCRITIVOS</h4>
                 </div>
-              )}
-
-              <div className="space-y-4 pt-4 border-t border-gray-50">
-                <div className="flex items-center gap-2 text-gray-500 mb-2">
-                  <ShoppingCart size={16} />
-                  <h4 className="text-[11px] font-black uppercase tracking-widest">Itens do Pedido</h4>
-                </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {viewingOrder.items?.map((item: any) => (
-                    <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm flex justify-between items-center">
+                    <div key={item.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex justify-between items-center group hover:border-blue-100 transition-colors">
                       <div className="flex flex-col">
-                        <span className="text-sm font-bold text-[#1e293b]">{item.serviceName}</span>
-                        <span className="text-[10px] text-gray-400 font-medium">Qtd: {item.quantity} | R$ {item.price.toFixed(2)} un</span>
+                        <span className="text-xs font-black text-slate-700 uppercase">{item.serviceName}</span>
+                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Qtd: {item.quantity} • Unit: R$ {item.price.toFixed(2)}</span>
                       </div>
                       <span className="text-sm font-black text-blue-600">R$ {(item.price * item.quantity).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div className="flex gap-4 pt-6 border-t border-gray-100">
+                <button 
+                  onClick={() => generatePDF('PEDIDO', viewingOrder, 'print')}
+                  className="flex-1 py-4 bg-orange-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-orange-100 flex items-center justify-center gap-2 hover:bg-orange-700 transition-all active:scale-95"
+                >
+                  <Printer size={18} /> Imprimir Comprovante
+                </button>
+                <button 
+                  onClick={() => setIsDetailsOpen(false)}
+                  className="flex-1 py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
+                >
+                  Voltar
+                </button>
               </div>
             </div>
           </div>
