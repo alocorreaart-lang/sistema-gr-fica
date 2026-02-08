@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Package, Search, Plus, X, Trash2, Edit, Calculator, Ruler, Layers, Save, Upload, FileJson, FileSpreadsheet } from 'lucide-react';
+import { Package, Search, Plus, X, Trash2, Edit, Calculator, Ruler, Layers, Save, Upload } from 'lucide-react';
 import { Product } from '../types';
+import * as XLSX from 'xlsx';
 
 const Products: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -76,52 +77,34 @@ const Products: React.FC = () => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const content = e.target?.result as string;
-        let imported: any[] = [];
-        
-        if (file.name.endsWith('.json')) {
-          imported = JSON.parse(content);
-        } else if (file.name.endsWith('.csv')) {
-          const lines = content.split('\n');
-          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-          imported = lines.slice(1).filter(l => l.trim()).map(line => {
-            const values = line.split(',');
-            const obj: any = {};
-            headers.forEach((h, i) => {
-              obj[h] = values[i]?.trim();
-            });
-            return {
-              id: Math.random().toString(36).substr(2, 9),
-              name: obj.nome || obj.name || 'Sem Nome',
-              category: obj.categoria || obj.category || 'Geral',
-              basePrice: parseFloat(obj.custo || obj.baseprice) || 0,
-              salePrice: parseFloat(obj.venda || obj.saleprice) || 0,
-              margin: parseFloat(obj.margem || obj.margin) || 0,
-              unit: obj.unidade || obj.unit || 'Unidade',
-              description: obj.descricao || obj.description || '',
-              size: '',
-              material: ''
-            };
-          });
-        }
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const importedData = XLSX.utils.sheet_to_json(sheet);
 
-        if (Array.isArray(imported)) {
-          const validImported = imported.map(p => ({
-            ...p,
-            id: p.id || Math.random().toString(36).substr(2, 9),
-            basePrice: Number(p.basePrice) || 0,
-            salePrice: Number(p.salePrice) || 0,
-            margin: Number(p.margin) || 0
+        if (Array.isArray(importedData)) {
+          const validImported = importedData.map((obj: any) => ({
+            id: Math.random().toString(36).substr(2, 9),
+            name: obj.Nome || obj.name || obj.Produto || 'Sem Nome',
+            category: obj.Categoria || obj.category || 'Geral',
+            basePrice: parseFloat(obj.Custo || obj.custo || obj.basePrice) || 0,
+            salePrice: parseFloat(obj.Venda || obj.venda || obj.salePrice) || 0,
+            margin: parseFloat(obj.Margem || obj.margem || obj.margin) || 0,
+            unit: obj.Unidade || obj.unit || 'Unidade',
+            description: obj.Descricao || obj.descricao || obj.description || '',
+            size: '',
+            material: ''
           }));
           saveProducts([...products, ...validImported]);
           alert(`${validImported.length} produtos importados com sucesso!`);
         }
       } catch (err) {
         console.error(err);
-        alert('Erro ao processar arquivo. Verifique o formato.');
+        alert('Erro ao processar arquivo. Certifique-se de que é um arquivo Excel (.xlsx, .xls) ou CSV válido.');
       }
     };
-    reader.readAsText(file);
+    reader.readAsBinaryString(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -192,14 +175,14 @@ const Products: React.FC = () => {
             type="file" 
             ref={fileInputRef} 
             onChange={handleFileUpload} 
-            accept=".json,.csv" 
+            accept=".xlsx,.xls,.csv" 
             className="hidden" 
           />
           <button 
             onClick={() => fileInputRef.current?.click()}
             className="flex-1 md:flex-none border-2 border-slate-200 text-slate-600 px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-slate-100 font-bold transition-all"
           >
-            <Upload size={18} /> IMPORTAR
+            <Upload size={18} /> IMPORTAR EXCEL
           </button>
           <button onClick={handleOpenCreateModal} className="flex-1 md:flex-none bg-indigo-600 text-white px-6 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 font-bold shadow-md active:scale-95 transition-all">
             <Plus size={20} /> NOVO PRODUTO
