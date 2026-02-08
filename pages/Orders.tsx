@@ -79,10 +79,6 @@ const Orders: React.FC = () => {
     address: '', neighborhood: '', city: '', observations: ''
   });
 
-  useEffect(() => {
-    loadData();
-  }, [isModalOpen, isDetailsOpen]);
-
   const loadData = () => {
     const storedOrders = localStorage.getItem('quickprint_orders');
     if (storedOrders) setOrders(JSON.parse(storedOrders));
@@ -114,6 +110,12 @@ const Orders: React.FC = () => {
       }
     }
   };
+
+  useEffect(() => {
+    loadData();
+    window.addEventListener('clientsUpdated', loadData);
+    return () => window.removeEventListener('clientsUpdated', loadData);
+  }, [isModalOpen, isDetailsOpen]);
 
   const saveOrders = (newOrders: Order[]) => {
     setOrders(newOrders);
@@ -166,10 +168,17 @@ const Orders: React.FC = () => {
       id: Math.random().toString(36).substr(2, 9),
       ...clientFormData
     };
-    const updatedClients = [...clients, newClient];
+    const storedClients = localStorage.getItem('quickprint_clients');
+    const existingClients = storedClients ? JSON.parse(storedClients) : [];
+    const updatedClients = [...existingClients, newClient];
+    
     localStorage.setItem('quickprint_clients', JSON.stringify(updatedClients));
-    setClients(updatedClients.sort((a, b) => a.name.localeCompare(b.name)));
+    setClients(updatedClients.sort((a: any, b: any) => a.name.localeCompare(b.name)));
     setFormData({ ...formData, clientId: newClient.id, clientName: newClient.name, clientPhone: newClient.phone });
+    
+    // Notifica o sistema de que os clientes mudaram
+    window.dispatchEvent(new Event('clientsUpdated'));
+    
     setIsClientModalOpen(false);
     setClientFormData({ name: '', email: '', phone: '', document: '', responsible: '', address: '', neighborhood: '', city: '', observations: '' });
   };

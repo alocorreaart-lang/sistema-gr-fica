@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, User, Edit2, X, Save, MapPin, UserCheck, Trash2 } from 'lucide-react';
 import { Client } from '../types';
 
@@ -19,7 +19,7 @@ const Clients: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
+  const loadClients = useCallback(() => {
     const stored = localStorage.getItem('quickprint_clients');
     if (stored) {
       const parsed: Client[] = JSON.parse(stored);
@@ -30,80 +30,43 @@ const Clients: React.FC = () => {
         { id: 'c1', name: 'Adaliana Souza', email: '', phone: '', document: '' },
         { id: 'c2', name: 'Adriely Balieiro Ribeiro', email: '', phone: '(12) 99757-9771', document: '' },
         { id: 'c3', name: 'Alexandra - Emo', email: '', phone: '', document: '' },
-        { id: 'c4', name: 'Amélia', email: '', phone: '(12) 99186-3889', document: '' },
-        { id: 'c5', name: 'ANDERSON LUIZ OURIVES CORREA', email: 'feitoamao.impressos@gmail.com', phone: '(12) 99239-1458', document: '' },
-        { id: 'c6', name: 'Beatriz - UTI', email: '', phone: '', document: '' },
-        { id: 'c7', name: 'Beatriz Helena Ártico', email: '', phone: '(12) 99257-9779', document: '' },
-        { id: 'c8', name: 'Camila', email: '', phone: '', document: '' },
-        { id: 'c9', name: 'Célia - Santa Casa Guaratinguetá', email: '', phone: '', document: '' },
-        { id: 'c10', name: 'Ciliane', email: '', phone: '(12) 99618-5065', document: '' },
-        { id: 'c11', name: 'Cintia', email: '', phone: '', document: '' },
-        { id: 'c12', name: 'Cris - Loira UTI', email: '', phone: '', document: '' },
-        { id: 'c13', name: 'Cristiane - Cris', email: '', phone: '(12) 99767-8032', document: '' },
-        { id: 'c14', name: 'Edimilson - Didi', email: '', phone: '', document: '' },
-        { id: 'c15', name: "Eliana's Restaurante", email: '', phone: '(12) 99205-3252', document: '' },
-        { id: 'c16', name: 'Elida - Samira', email: '', phone: '', document: '' },
-        { id: 'c17', name: 'Flávia Ferreira', email: '', phone: '', document: '' },
-        { id: 'c18', name: 'Gabi - Unha', email: '', phone: '', document: '' },
-        { id: 'c19', name: 'Gabriela', email: '', phone: '', document: '' },
-        { id: 'c20', name: 'Geovana - Cris', email: '', phone: '', document: '' },
         { id: 'c21', name: 'Gera Som', email: 'feitoamao.impressos@gmail.com', phone: '(12) 99619-3794', document: '' },
-        { id: 'c22', name: 'Gisele CC', email: '', phone: '', document: '' },
-        { id: 'c23', name: 'Graça - Santa Casa', email: '', phone: '', document: '' },
-        { id: 'c24', name: 'Gráfica Denis', email: '', phone: '(12) 99702-4365', document: '' },
-        { id: 'c25', name: 'Gráfica Digital Center', email: '', phone: '(12) 99600-2727', document: '' },
         { id: 'c26', name: 'IRM SENHOR DOS PASSOS E STA CASA DE MISERICORDIA DE GUARATINGUETA', email: 'compras@santacasaguara.com.br', phone: '(12) 99628-3943', document: '' },
-        { id: 'c27', name: 'Jeferson Barbearia', email: '', phone: '(12) 99100-1530', document: '' },
-        { id: 'c28', name: 'Jéssica - Enfermeira', email: '', phone: '', document: '' },
-        { id: 'c29', name: 'Jéssica - Ortopedia', email: '', phone: '', document: '' },
-        { id: 'c30', name: 'Juliana - Santa Casa', email: '', phone: '', document: '' },
-        { id: 'c31', name: 'Letícia - Santa Casa Guará', email: '', phone: '', document: '' },
-        { id: 'c32', name: 'Loja Ireny', email: '', phone: '(12) 98142-6238', document: '' },
-        { id: 'c33', name: 'Loja Vitória', email: '', phone: '(12) 98142-6238', document: '' },
-        { id: 'c34', name: 'Lorraine - Santa Casa Guara', email: '', phone: '', document: '' },
-        { id: 'c35', name: 'Lúcia Moraes', email: '', phone: '(12) 99142-7858', document: '' },
-        { id: 'c36', name: 'Lugui Ferramentas', email: '', phone: '(12) 98245-1589', document: '' },
-        { id: 'c37', name: 'Mais Motos', email: '', phone: '(12) 97409-5312', document: '' },
-        { id: 'c38', name: 'Mariane Bijoux', email: '', phone: '(12) 99738-1848', document: '' },
-        { id: 'c39', name: 'Marina', email: '', phone: '', document: '' },
-        { id: 'c40', name: 'Michele - Enfermeira', email: '', phone: '', document: '' },
-        { id: 'c41', name: 'Michele - Enfermeira Pediatria', email: '', phone: '', document: '' },
-        { id: 'c42', name: 'Mônica', email: '', phone: '', document: '' },
-        { id: 'c43', name: 'Natalia - PI', email: '', phone: '', document: '' },
-        { id: 'c44', name: 'Natália - C1', email: '', phone: '', document: '' },
-        { id: 'c45', name: 'Ortobom - Guaratinguetá', email: '', phone: '(12) 99239-2009', document: '' },
-        { id: 'c46', name: 'Paloma - C1', email: '', phone: '', document: '' },
-        { id: 'c47', name: 'Paula Mariana', email: '', phone: '', document: '' },
-        { id: 'c48', name: 'Pedro', email: '', phone: '', document: '' },
-        { id: 'c49', name: 'Pizzaria La Bella', email: '', phone: '(12) 99766-0189', document: '' },
-        { id: 'c50', name: 'Priscila - Santa Casa Aparecida', email: '', phone: '', document: '' },
-        { id: 'c51', name: 'Psicomed', email: '', phone: '(12) 3105-3194', document: '' },
-        { id: 'c52', name: 'Renata', email: '', phone: '(12) 99725-8925', document: '' },
-        { id: 'c53', name: 'Renata', email: '', phone: '', document: '' },
-        { id: 'c54', name: 'Rose - Enfermeira', email: '', phone: '', document: '' },
-        { id: 'c55', name: 'Samira - Santa Casa Aparecida', email: '', phone: '', document: '' },
-        { id: 'c56', name: 'Santa Casa de Misericórdia de Guaratinguetá', email: '', phone: '(12) 2131-1900', document: '' },
-        { id: 'c57', name: 'Sheila - Festas', email: '', phone: '', document: '' },
-        { id: 'c58', name: 'Silvia - Camila Shopping', email: '', phone: '', document: '' },
-        { id: 'c59', name: 'Suelen', email: '', phone: '', document: '' },
-        { id: 'c60', name: 'Taisa Helena', email: '', phone: '(12) 99260-8262', document: '' },
-        { id: 'c61', name: 'Tassia - Felipe', email: '', phone: '', document: '' },
-        { id: 'c62', name: 'Thais', email: '', phone: '', document: '' },
-        { id: 'c63', name: 'Thais - Cinta', email: '', phone: '', document: '' },
-        { id: 'c64', name: 'Thais - Enfermeira', email: '', phone: '(12) 99747-2680', document: '' },
-        { id: 'c65', name: 'Valquiria - Val', email: '', phone: '', document: '' },
-        { id: 'c66', name: 'Vanessa', email: '', phone: '', document: '' },
-        { id: 'c67', name: 'Yane', email: '', phone: '', document: '' }
+        { id: 'c56', name: 'Santa Casa de Misericórdia de Guaratinguetá', email: '', phone: '(12) 2131-1900', document: '' }
       ];
-      saveClients(initial);
+      const sortedInitial = initial.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' }));
+      setClients(sortedInitial);
+      localStorage.setItem('quickprint_clients', JSON.stringify(sortedInitial));
     }
   }, []);
+
+  useEffect(() => {
+    loadClients();
+    
+    // Listener para atualizar se o localStorage mudar em outra parte do app
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'quickprint_clients') {
+        loadClients();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    // Evento customizado para mudanças na mesma aba
+    window.addEventListener('clientsUpdated', loadClients);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('clientsUpdated', loadClients);
+    };
+  }, [loadClients]);
 
   const saveClients = (newClients: Client[]) => {
     const sorted = [...newClients].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' }));
     setClients(sorted);
     localStorage.setItem('quickprint_clients', JSON.stringify(sorted));
     setSelectedIds(new Set());
+    // Dispara evento para outras partes do app
+    window.dispatchEvent(new Event('clientsUpdated'));
   };
 
   const [formData, setFormData] = useState({
