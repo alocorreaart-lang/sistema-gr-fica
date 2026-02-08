@@ -154,7 +154,8 @@ const Products: React.FC = () => {
             <tr>
               <th className="px-6 py-4">Produto / Serviço</th>
               <th className="px-6 py-4">Categoria</th>
-              <th className="px-6 py-4 text-right">Preço Unitário</th>
+              <th className="px-6 py-4 text-right">Preço Custo</th>
+              <th className="px-6 py-4 text-right">Preço Venda</th>
               <th className="px-6 py-4 text-center">Ações</th>
             </tr>
           </thead>
@@ -172,6 +173,7 @@ const Products: React.FC = () => {
                     {product.category || 'Geral'}
                   </span>
                 </td>
+                <td className="px-6 py-4 text-right text-xs font-semibold text-gray-400 italic">R$ {product.basePrice.toFixed(2)}</td>
                 <td className="px-6 py-4 text-right font-black text-indigo-700">R$ {product.salePrice.toFixed(2)}</td>
                 <td className="px-6 py-4 text-center">
                   <div className="flex justify-center gap-1">
@@ -183,7 +185,7 @@ const Products: React.FC = () => {
             ))}
             {filteredProducts.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-gray-400 italic">Nenhum produto cadastrado.</td>
+                <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">Nenhum produto cadastrado.</td>
               </tr>
             )}
           </tbody>

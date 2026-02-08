@@ -79,7 +79,10 @@ const AppContent = () => {
 
   const currentMonthName = useMemo(() => {
     const date = new Date(startDate + 'T12:00:00');
-    return date.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+    const formatted = date.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+    // Ajuste para deixar apenas a primeira letra em maiúscula (ex: Fevereiro de 2026)
+    // Isso evita que a classe 'capitalize' do Tailwind transforme o 'de' em 'De'
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   }, [startDate]);
 
   const handleMonthChange = (direction: number) => {
@@ -130,7 +133,7 @@ const AppContent = () => {
             <div className="flex items-center gap-3 animate-in fade-in slide-in-from-top-1">
               <button 
                 onClick={() => handleMonthChange(-1)}
-                className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-2xl text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:shadow-md transition-all active:scale-90"
+                className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-2xl text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:shadow-md transition-all active:scale-95"
               >
                 <ChevronLeft size={20} />
               </button>
@@ -141,7 +144,7 @@ const AppContent = () => {
                 </div>
                 <div className="flex flex-col pr-4">
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Visualizando Mês</span>
-                  <span className="text-sm font-black text-slate-700 capitalize leading-none">{currentMonthName}</span>
+                  <span className="text-sm font-black text-slate-700 leading-none">{currentMonthName}</span>
                 </div>
                 <div className="text-slate-300">
                   <ChevronDown size={18} />
@@ -150,7 +153,7 @@ const AppContent = () => {
 
               <button 
                 onClick={() => handleMonthChange(1)}
-                className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-2xl text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:shadow-md transition-all active:scale-90"
+                className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-2xl text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:shadow-md transition-all active:scale-95"
               >
                 <ChevronRight size={20} />
               </button>
