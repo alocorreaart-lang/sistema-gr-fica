@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Mail, Phone, User, Edit2, Trash, X, Save, FileText, MoreHorizontal, MapPin, UserCheck, Check } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Search, Mail, Phone, User, Edit2, Trash, X, Save, FileText, MoreHorizontal, MapPin, UserCheck, Check, Upload } from 'lucide-react';
 import { Client } from '../types';
 
 const formatPhone = (value: string) => {
@@ -17,6 +17,7 @@ const Clients: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem('quickprint_clients');
@@ -65,6 +66,59 @@ const Clients: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        let imported: any[] = [];
+        
+        if (file.name.endsWith('.json')) {
+          imported = JSON.parse(content);
+        } else if (file.name.endsWith('.csv')) {
+          const lines = content.split('\n');
+          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+          imported = lines.slice(1).filter(l => l.trim()).map(line => {
+            const values = line.split(',');
+            const obj: any = {};
+            headers.forEach((h, i) => {
+              obj[h] = values[i]?.trim();
+            });
+            return {
+              id: Math.random().toString(36).substr(2, 9),
+              name: obj.nome || obj.name || 'Sem Nome',
+              email: obj.email || '',
+              phone: obj.telefone || obj.phone || '',
+              document: obj.documento || obj.document || '',
+              responsible: obj.responsavel || obj.responsible || '',
+              address: obj.endereco || obj.address || '',
+              neighborhood: obj.bairro || obj.neighborhood || '',
+              city: obj.cidade || obj.city || '',
+              observations: obj.observacoes || obj.observations || ''
+            };
+          });
+        }
+
+        if (Array.isArray(imported)) {
+          const validImported = imported.map(c => ({
+            ...c,
+            id: c.id || Math.random().toString(36).substr(2, 9)
+          }));
+          saveClients([...clients, ...validImported]);
+          alert(`${validImported.length} clientes importados com sucesso!`);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Erro ao processar arquivo. Verifique o formato.');
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingClient) {
@@ -91,16 +145,31 @@ const Clients: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-green-600 text-white rounded-lg shadow-lg">
             <User size={24} />
           </div>
           <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-tight">Base de Clientes</h2>
         </div>
-        <button onClick={handleOpenCreateModal} className="bg-green-600 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 hover:bg-green-700 font-bold shadow-md active:scale-95 transition-all">
-          <Plus size={20} /> NOVO CLIENTE
-        </button>
+        <div className="flex gap-3 w-full md:w-auto">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            accept=".json,.csv" 
+            className="hidden" 
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="flex-1 md:flex-none border-2 border-slate-200 text-slate-600 px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-slate-100 font-bold transition-all"
+          >
+            <Upload size={18} /> IMPORTAR
+          </button>
+          <button onClick={handleOpenCreateModal} className="flex-1 md:flex-none bg-green-600 text-white px-6 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-green-700 font-bold shadow-md active:scale-95 transition-all">
+            <Plus size={20} /> NOVO CLIENTE
+          </button>
+        </div>
       </div>
 
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">

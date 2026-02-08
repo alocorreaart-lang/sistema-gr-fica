@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { Package, Search, Plus, X, Trash2, Edit, Calculator, Ruler, Layers, Save } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Package, Search, Plus, X, Trash2, Edit, Calculator, Ruler, Layers, Save, Upload, FileJson, FileSpreadsheet } from 'lucide-react';
 import { Product } from '../types';
 
 const Products: React.FC = () => {
@@ -8,6 +8,7 @@ const Products: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem('quickprint_products');
@@ -68,6 +69,62 @@ const Products: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        let imported: any[] = [];
+        
+        if (file.name.endsWith('.json')) {
+          imported = JSON.parse(content);
+        } else if (file.name.endsWith('.csv')) {
+          const lines = content.split('\n');
+          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+          imported = lines.slice(1).filter(l => l.trim()).map(line => {
+            const values = line.split(',');
+            const obj: any = {};
+            headers.forEach((h, i) => {
+              obj[h] = values[i]?.trim();
+            });
+            return {
+              id: Math.random().toString(36).substr(2, 9),
+              name: obj.nome || obj.name || 'Sem Nome',
+              category: obj.categoria || obj.category || 'Geral',
+              basePrice: parseFloat(obj.custo || obj.baseprice) || 0,
+              salePrice: parseFloat(obj.venda || obj.saleprice) || 0,
+              margin: parseFloat(obj.margem || obj.margin) || 0,
+              unit: obj.unidade || obj.unit || 'Unidade',
+              description: obj.descricao || obj.description || '',
+              size: '',
+              material: ''
+            };
+          });
+        }
+
+        if (Array.isArray(imported)) {
+          const validImported = imported.map(p => ({
+            ...p,
+            id: p.id || Math.random().toString(36).substr(2, 9),
+            basePrice: Number(p.basePrice) || 0,
+            salePrice: Number(p.salePrice) || 0,
+            margin: Number(p.margin) || 0
+          }));
+          saveProducts([...products, ...validImported]);
+          alert(`${validImported.length} produtos importados com sucesso!`);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Erro ao processar arquivo. Verifique o formato.');
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleCalculation = (field: 'basePrice' | 'salePrice' | 'margin', value: string) => {
     const numValue = parseFloat(value) || 0;
     let base = field === 'basePrice' ? numValue : parseFloat(formData.basePrice) || 0;
@@ -125,14 +182,29 @@ const Products: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-indigo-600 text-white rounded-lg shadow-lg"><Package size={24} /></div>
           <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-tight">Produtos & Serviços</h2>
         </div>
-        <button onClick={handleOpenCreateModal} className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 hover:bg-indigo-700 font-bold shadow-md active:scale-95 transition-all">
-          <Plus size={20} /> NOVO PRODUTO
-        </button>
+        <div className="flex gap-3 w-full md:w-auto">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            accept=".json,.csv" 
+            className="hidden" 
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="flex-1 md:flex-none border-2 border-slate-200 text-slate-600 px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-slate-100 font-bold transition-all"
+          >
+            <Upload size={18} /> IMPORTAR
+          </button>
+          <button onClick={handleOpenCreateModal} className="flex-1 md:flex-none bg-indigo-600 text-white px-6 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 font-bold shadow-md active:scale-95 transition-all">
+            <Plus size={20} /> NOVO PRODUTO
+          </button>
+        </div>
       </div>
 
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
