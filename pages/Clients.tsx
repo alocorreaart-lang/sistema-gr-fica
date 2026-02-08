@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Mail, Phone, User, Edit2, Trash, X, Save, FileText, MoreHorizontal, MapPin, UserCheck } from 'lucide-react';
+import { Plus, Search, Mail, Phone, User, Edit2, Trash, X, Save, FileText, MoreHorizontal, MapPin, UserCheck, Check } from 'lucide-react';
 import { Client } from '../types';
 
 const formatPhone = (value: string) => {
@@ -22,32 +22,30 @@ const Clients: React.FC = () => {
     const stored = localStorage.getItem('quickprint_clients');
     if (stored) {
       const parsed: Client[] = JSON.parse(stored);
-      // Garante ordenação mesmo se o storage estiver bagunçado
       const sorted = parsed.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' }));
       setClients(sorted);
     } else {
       const initial = [
-        { id: '1', name: 'Gráfica Digital LTDA', email: 'contato@graficadigital.com', phone: '(11) 99999-9999', document: '12.345.678/0001-00', responsible: 'João Silva', city: 'São Paulo', address: 'Rua das Artes', addressNumber: '150' },
-        { id: '2', name: 'Ana Costa Designer', email: 'ana@email.com', phone: '(11) 88888-8888', document: '987.654.321-11', responsible: 'Ana Costa', city: 'São Bernardo', address: 'Av Principal', addressNumber: '10' },
+        { id: '1', name: 'Gráfica Digital LTDA', email: 'contato@graficadigital.com', phone: '(11) 99999-9999', document: '12.345.678/0001-00', responsible: 'João Silva', city: 'São Paulo', address: 'Rua das Artes, 150', neighborhood: 'Centro' },
+        { id: '2', name: 'Ana Costa Designer', email: 'ana@email.com', phone: '(11) 88888-8888', document: '987.654.321-11', responsible: 'Ana Costa', city: 'São Bernardo', address: 'Av Principal, 10', neighborhood: 'Jardim' },
       ];
       saveClients(initial);
     }
   }, []);
 
   const saveClients = (newClients: Client[]) => {
-    // Ordenação alfabética robusta antes de salvar
     const sorted = [...newClients].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'accent' }));
     setClients(sorted);
     localStorage.setItem('quickprint_clients', JSON.stringify(sorted));
   };
 
   const [formData, setFormData] = useState({
-    name: '', email: '', phone: '', document: '', responsible: '', address: '', addressNumber: '', neighborhood: '', city: '', observations: ''
+    name: '', email: '', phone: '', document: '', responsible: '', address: '', neighborhood: '', city: '', observations: ''
   });
 
   const handleOpenCreateModal = () => {
     setEditingClient(null);
-    setFormData({ name: '', email: '', phone: '', document: '', responsible: '', address: '', addressNumber: '', neighborhood: '', city: '', observations: '' });
+    setFormData({ name: '', email: '', phone: '', document: '', responsible: '', address: '', neighborhood: '', city: '', observations: '' });
     setIsModalOpen(true);
   };
 
@@ -60,7 +58,6 @@ const Clients: React.FC = () => {
       document: client.document || '',
       responsible: client.responsible || '',
       address: client.address || '',
-      addressNumber: client.addressNumber || '',
       neighborhood: client.neighborhood || '',
       city: client.city || '',
       observations: client.observations || ''
@@ -93,7 +90,7 @@ const Clients: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-10">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-green-600 text-white rounded-lg shadow-lg">
@@ -111,7 +108,7 @@ const Clients: React.FC = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input 
             type="text" 
-            placeholder="Buscar por nome..." 
+            placeholder="Buscar por nome, email ou CPF/CNPJ..." 
             className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500/20 bg-gray-50/50"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
@@ -151,48 +148,160 @@ const Clients: React.FC = () => {
                   </td>
                 </tr>
               ))}
+              {filteredClients.length === 0 && (
+                <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">Nenhum cliente encontrado.</td></tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className={`p-5 flex justify-between items-center text-white ${editingClient ? 'bg-blue-600' : 'bg-green-600'}`}>
-              <h3 className="text-xl font-bold uppercase tracking-tight">{editingClient ? 'Editar Cadastro' : 'Novo Cliente'}</h3>
-              <button onClick={() => setIsModalOpen(false)}><X size={24} /></button>
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl my-8 overflow-hidden animate-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
+              <h3 className="text-2xl font-semibold text-slate-800">
+                {editingClient ? 'Editar Cliente' : 'Novo Cliente'}
+              </h3>
+              <button 
+                onClick={() => setIsModalOpen(false)} 
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={24} />
+              </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              <div className="grid grid-cols-2 gap-x-6 gap-y-5">
-                <div className="col-span-1">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Razão Social / Nome Fantasia *</label>
-                  <input required type="text" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+            
+            <form onSubmit={handleSubmit} className="p-8 space-y-6 bg-white">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                
+                {/* Nome Completo */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-semibold text-slate-700">Nome Completo *</label>
+                  <input 
+                    required 
+                    type="text" 
+                    placeholder="Nome do cliente"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:border-slate-500 transition-colors placeholder:text-gray-300" 
+                    value={formData.name} 
+                    onChange={e => setFormData({...formData, name: e.target.value})} 
+                  />
                 </div>
-                <div className="col-span-1">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Responsável</label>
-                  <input type="text" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 outline-none" value={formData.responsible} onChange={e => setFormData({...formData, responsible: e.target.value})} />
+
+                {/* Telefone */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-semibold text-slate-700">Telefone</label>
+                  <input 
+                    type="text" 
+                    placeholder="(00) 00000-0000"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:border-slate-500 transition-colors placeholder:text-gray-300" 
+                    value={formData.phone} 
+                    onChange={e => setFormData({...formData, phone: formatPhone(e.target.value)})} 
+                  />
                 </div>
-                <div className="col-span-1">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Telefone</label>
-                  <input type="text" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 outline-none" value={formData.phone} onChange={e => setFormData({...formData, phone: formatPhone(e.target.value)})} />
+
+                {/* Email */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-semibold text-slate-700">Email</label>
+                  <input 
+                    type="email" 
+                    placeholder="email@exemplo.com"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:border-slate-500 transition-colors placeholder:text-gray-300" 
+                    value={formData.email} 
+                    onChange={e => setFormData({...formData, email: e.target.value})} 
+                  />
                 </div>
-                <div className="col-span-1">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Email</label>
-                  <input type="email" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 outline-none" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+
+                {/* CPF/CNPJ */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-semibold text-slate-700">CPF/CNPJ</label>
+                  <input 
+                    type="text" 
+                    placeholder="000.000.000-00"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:border-slate-500 transition-colors placeholder:text-gray-300" 
+                    value={formData.document} 
+                    onChange={e => setFormData({...formData, document: e.target.value})} 
+                  />
                 </div>
-                <div className="col-span-1">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">CPF/CNPJ</label>
-                  <input type="text" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 outline-none" value={formData.document} onChange={e => setFormData({...formData, document: e.target.value})} />
+
+                {/* Responsável */}
+                <div className="col-span-1 md:col-span-2 space-y-1.5">
+                  <label className="block text-sm font-semibold text-slate-700">Responsável</label>
+                  <input 
+                    type="text" 
+                    placeholder="Nome do responsável pelo cliente"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:border-slate-500 transition-colors placeholder:text-gray-300" 
+                    value={formData.responsible} 
+                    onChange={e => setFormData({...formData, responsible: e.target.value})} 
+                  />
                 </div>
-                <div className="col-span-1">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Cidade</label>
-                  <input type="text" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 outline-none" value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} />
+
+                {/* Endereço */}
+                <div className="col-span-1 md:col-span-2 space-y-1.5">
+                  <label className="block text-sm font-semibold text-slate-700">Endereço</label>
+                  <input 
+                    type="text" 
+                    placeholder="Rua e número"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:border-slate-500 transition-colors placeholder:text-gray-300" 
+                    value={formData.address} 
+                    onChange={e => setFormData({...formData, address: e.target.value})} 
+                  />
                 </div>
+
+                {/* Bairro */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-semibold text-slate-700">Bairro</label>
+                  <input 
+                    type="text" 
+                    placeholder="Bairro"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:border-slate-500 transition-colors placeholder:text-gray-300" 
+                    value={formData.neighborhood} 
+                    onChange={e => setFormData({...formData, neighborhood: e.target.value})} 
+                  />
+                </div>
+
+                {/* Cidade */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-semibold text-slate-700">Cidade</label>
+                  <input 
+                    type="text" 
+                    placeholder="Cidade"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:border-slate-500 transition-colors placeholder:text-gray-300" 
+                    value={formData.city} 
+                    onChange={e => setFormData({...formData, city: e.target.value})} 
+                  />
+                </div>
+
+                {/* Observações */}
+                <div className="col-span-1 md:col-span-2 space-y-1.5">
+                  <label className="block text-sm font-semibold text-slate-700">Observações</label>
+                  <textarea 
+                    rows={4}
+                    placeholder="Informações adicionais sobre o cliente"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:border-slate-500 transition-colors resize-none placeholder:text-gray-400" 
+                    value={formData.observations} 
+                    onChange={e => setFormData({...formData, observations: e.target.value})} 
+                  />
+                </div>
+
               </div>
-              <div className="flex justify-end gap-4 pt-4 border-t border-gray-50">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-8 py-2.5 border border-gray-300 text-gray-500 rounded-lg font-bold text-xs uppercase tracking-widest">Cancelar</button>
-                <button type="submit" className={`px-10 py-3 text-white rounded-lg font-black text-xs uppercase tracking-widest shadow-xl ${editingClient ? 'bg-blue-600' : 'bg-green-600'}`}>Salvar Cadastro</button>
+
+              {/* Botões Ações */}
+              <div className="flex justify-end gap-4 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setIsModalOpen(false)} 
+                  className="px-10 py-2.5 border border-gray-300 text-slate-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-10 py-2.5 bg-[#82cf9e] text-white rounded-lg font-medium shadow-md hover:bg-[#6fb98d] transition-all flex items-center gap-2"
+                >
+                  <Save size={18} />
+                  Salvar
+                </button>
               </div>
             </form>
           </div>

@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -12,7 +12,10 @@ import {
   Calendar as CalendarIcon,
   Layers,
   CalendarDays,
-  Filter
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Orders from './pages/Orders';
@@ -64,8 +67,25 @@ const AppContent = () => {
   const { startDate, setStartDate, endDate, setEndDate } = useDateFilter();
   const location = useLocation();
 
-  // Esconder filtro global em páginas que não fazem sentido (ex: Configurações ou Cadastro de Produtos)
+  // Esconder filtro global em páginas que não fazem sentido
   const showGlobalFilter = ['/', '/pedidos', '/financeiro'].includes(location.pathname);
+
+  // Lógica para navegação de meses
+  const currentMonthName = useMemo(() => {
+    const date = new Date(startDate + 'T12:00:00');
+    return date.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+  }, [startDate]);
+
+  const handleMonthChange = (direction: number) => {
+    const current = new Date(startDate + 'T12:00:00');
+    const newDate = new Date(current.getFullYear(), current.getMonth() + direction, 1);
+    
+    const firstDay = new Date(newDate.getFullYear(), newDate.getMonth(), 1).toISOString().split('T')[0];
+    const lastDay = new Date(newDate.getFullYear(), newDate.getMonth() + 1, 0).toISOString().split('T')[0];
+    
+    setStartDate(firstDay);
+    setEndDate(lastDay);
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -93,8 +113,8 @@ const AppContent = () => {
 
       {/* Main Content */}
       <main className="flex-1 ml-64 min-h-screen flex flex-col">
-        {/* Global Top Bar com Filtro */}
-        <header className="bg-white border-b border-gray-200 h-16 sticky top-0 z-10 flex items-center justify-between px-8">
+        {/* Global Top Bar com Filtro estilizado conforme imagem */}
+        <header className="bg-white border-b border-gray-200 h-20 sticky top-0 z-10 flex items-center justify-between px-8">
           <div className="flex items-center gap-4">
             <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest">
               {location.pathname === '/' ? 'Dashboard' : 
@@ -104,39 +124,36 @@ const AppContent = () => {
           </div>
 
           {showGlobalFilter && (
-            <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-gray-100 shadow-sm animate-in fade-in slide-in-from-top-1">
-              <div className="flex items-center gap-2 px-3">
-                <CalendarDays size={14} className="text-blue-600" />
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Filtrar Período</span>
+            <div className="flex items-center gap-3 animate-in fade-in slide-in-from-top-1">
+              {/* Botão Anterior */}
+              <button 
+                onClick={() => handleMonthChange(-1)}
+                className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-2xl text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:shadow-md transition-all active:scale-90"
+              >
+                <ChevronLeft size={20} />
+              </button>
+
+              {/* Seletor Central */}
+              <div className="flex items-center gap-4 bg-white border border-gray-100 rounded-[2rem] px-5 py-2.5 shadow-sm hover:shadow-md transition-shadow cursor-default">
+                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                  <CalendarIcon size={20} />
+                </div>
+                <div className="flex flex-col pr-4">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Visualizando Mês</span>
+                  <span className="text-sm font-black text-slate-700 capitalize leading-none">{currentMonthName}</span>
+                </div>
+                <div className="text-slate-300">
+                  <ChevronDown size={18} />
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <input 
-                  type="date" 
-                  className="text-[10px] font-bold text-slate-700 bg-white px-2 py-1.5 rounded-lg outline-none border border-gray-200 focus:border-blue-400 transition-colors" 
-                  value={startDate} 
-                  onChange={e => setStartDate(e.target.value)}
-                />
-                <span className="text-gray-300 text-xs">até</span>
-                <input 
-                  type="date" 
-                  className="text-[10px] font-bold text-slate-700 bg-white px-2 py-1.5 rounded-lg outline-none border border-gray-200 focus:border-blue-400 transition-colors" 
-                  value={endDate} 
-                  onChange={e => setEndDate(e.target.value)}
-                />
-              </div>
-              <div className="px-2">
-                <button 
-                  onClick={() => {
-                    const now = new Date();
-                    setStartDate(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]);
-                    setEndDate(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]);
-                  }}
-                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Resetar para mês atual"
-                >
-                  <Filter size={14} />
-                </button>
-              </div>
+
+              {/* Botão Próximo */}
+              <button 
+                onClick={() => handleMonthChange(1)}
+                className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-2xl text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:shadow-md transition-all active:scale-90"
+              >
+                <ChevronRight size={20} />
+              </button>
             </div>
           )}
         </header>
