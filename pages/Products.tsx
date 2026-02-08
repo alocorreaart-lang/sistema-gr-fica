@@ -19,8 +19,81 @@ const Products: React.FC = () => {
       setProducts(sorted);
     } else {
       const initial: Product[] = [
-        { id: '1', name: 'Impressão Colorida A4', category: 'Impressão', basePrice: 0.50, salePrice: 2.50, margin: 400, unit: 'Unidade', size: 'A4', material: 'Papel 75g', description: 'Impressão laser colorida papel 75g' },
-        { id: '2', name: 'Banner Lona 440g', category: 'Comunicação Visual', basePrice: 25.00, salePrice: 65.00, margin: 160, unit: 'M²', size: 'Variável', material: 'Lona 440g', description: 'Banner com acabamento em madeira e cordão' },
+        { id: 'p1', name: 'Adesivo Fotográfico A4', category: 'Impressão', basePrice: 1.90, salePrice: 7.00, margin: 268.42, unit: 'Unidade', size: 'A4', material: 'Fotográfico', description: '' },
+        { id: 'p2', name: 'Adesivo Fotográfico A4 - Atacado', category: 'Impressão', basePrice: 1.90, salePrice: 5.50, margin: 189.47, unit: 'Unidade', size: 'A4', material: 'Fotográfico', description: '' },
+        { id: 'p3', name: 'Adesivo Marmitex 220gr', category: 'Impressão', basePrice: 0.51, salePrice: 0.90, margin: 76.47, unit: 'Unidade', size: '', material: 'Papel 220g', description: '' },
+        { id: 'p4', name: 'Adesivo Vinil - 1 - 3x1,5cm + meio corte', category: 'Adesivo', basePrice: 0.10, salePrice: 0.25, margin: 150.00, unit: 'Unidade', size: '3x1,5cm', material: 'Vinil', description: '' },
+        { id: 'p5', name: 'Adesivo Vinil - 2 - 4x2cm + meio corte', category: 'Adesivo', basePrice: 0.10, salePrice: 0.35, margin: 250.00, unit: 'Unidade', size: '4x2cm', material: 'Vinil', description: '' },
+        { id: 'p6', name: 'Adesivo Vinil - 3 - 6,5x3,5cm + meio corte', category: 'Adesivo', basePrice: 0.15, salePrice: 0.50, margin: 233.33, unit: 'Unidade', size: '6,5x3,5cm', material: 'Vinil', description: '' },
+        { id: 'p7', name: 'Adesivo Vinil - 4 - 7x3cm + meio corte', category: 'Adesivo', basePrice: 0.15, salePrice: 0.65, margin: 333.33, unit: 'Unidade', size: '7x3cm', material: 'Vinil', description: '' },
+        { id: 'p8', name: 'Adesivo Vinil - 5 - 8,8x5,8cm + meio corte', category: 'Adesivo', basePrice: 0.15, salePrice: 0.70, margin: 366.67, unit: 'Unidade', size: '8,8x5,8cm', material: 'Vinil', description: '' },
+        { id: 'p9', name: 'Adesivo Vinil - 6 - 10x7cm + meio corte', category: 'Adesivo', basePrice: 0.51, salePrice: 1.97, margin: 286.27, unit: 'Unidade', size: '10x7cm', material: 'Vinil', description: '' },
+        { id: 'p10', name: 'Adesivo Vinil - 7 - 20x10+ meio corte', category: 'Adesivo', basePrice: 1.90, salePrice: 10.00, margin: 426.32, unit: 'Unidade', size: '20x10cm', material: 'Vinil', description: '' },
+        { id: 'p11', name: 'Adesivo Vinil - Metro 60cm', category: 'Impressão', basePrice: 36.00, salePrice: 95.00, margin: 163.89, unit: 'M. Linear', size: '60cm', material: 'Vinil', description: '' },
+        { id: 'p12', name: 'Agenda 2025 - A5 - 2DPP - Promoção', category: 'Impressão', basePrice: 26.00, salePrice: 50.00, margin: 92.31, unit: 'Unidade', size: 'A5', material: '', description: '' },
+        { id: 'p13', name: 'Agenda 2026 - A5 - 2DPP', category: 'Impressão', basePrice: 26.00, salePrice: 60.00, margin: 130.77, unit: 'Unidade', size: 'A5', material: '', description: '' },
+        { id: 'p14', name: 'Agenda Escolar A6', category: 'Impressão', basePrice: 0.00, salePrice: 30.00, margin: 0, unit: 'Unidade', size: 'A6', material: '', description: '' },
+        { id: 'p15', name: 'Bandeirola até 10 letras', category: 'Personalizados', basePrice: 10.24, salePrice: 25.00, margin: 144.14, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p16', name: 'Banner 60x90 - Com bastão e cordão', category: 'Impressão', basePrice: 60.00, salePrice: 115.00, margin: 91.67, unit: 'Unidade', size: '60x90cm', material: 'Lona', description: '' },
+        { id: 'p17', name: 'Bloco A5 - 1 via papel 75g', category: 'Impressão', basePrice: 5.70, salePrice: 14.00, margin: 145.61, unit: 'Unidade', size: 'A5', material: 'Papel 75g', description: '' },
+        { id: 'p18', name: 'Bloco A6 - 1 via - 10 un.', category: 'Impressão', basePrice: 41.00, salePrice: 110.00, margin: 168.29, unit: 'Pacote', size: 'A6', material: '', description: '' },
+        { id: 'p19', name: 'Bloco A6 - 1 via - 20 un.', category: 'Impressão', basePrice: 82.00, salePrice: 180.00, margin: 119.51, unit: 'Pacote', size: 'A6', material: '', description: '' },
+        { id: 'p20', name: 'Bloco de comanda Garçon - 7,5x11 2 vias + Carbono', category: 'Impressão', basePrice: 2.40, salePrice: 4.50, margin: 87.50, unit: 'Unidade', size: '7,5x11cm', material: '', description: '' },
+        { id: 'p21', name: 'Bloco10x14 - 100 Folhas - Wire-o - Capa 180', category: 'Impressão', basePrice: 0.00, salePrice: 7.60, margin: 0, unit: 'Unidade', size: '10x14cm', material: '', description: '' },
+        { id: 'p22', name: 'Bloco10x14 - 50 Folhas - Wire-o - Capa 180', category: 'Impressão', basePrice: 0.00, salePrice: 5.60, margin: 0, unit: 'Unidade', size: '10x14cm', material: '', description: '' },
+        { id: 'p23', name: 'Bombonieri', category: 'Impressão', basePrice: 5.46, salePrice: 13.90, margin: 154.58, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p24', name: 'Caderneta de Vacinação - 15x21 - Espiral - Promoção', category: 'Personalizados', basePrice: 23.00, salePrice: 50.00, margin: 117.39, unit: 'Unidade', size: '15x21cm', material: '', description: '' },
+        { id: 'p25', name: 'Caderno Escolar A5 - Brochura', category: 'Impressão', basePrice: 10.97, salePrice: 30.00, margin: 173.47, unit: 'Unidade', size: 'A5', material: '', description: '' },
+        { id: 'p26', name: 'Caderno Escolar A5 - Wire-o', category: 'Impressão', basePrice: 16.35, salePrice: 45.00, margin: 175.23, unit: 'Unidade', size: 'A5', material: '', description: '' },
+        { id: 'p27', name: 'Caderno Escolar Universitário - Brochura', category: 'Impressão', basePrice: 25.00, salePrice: 45.00, margin: 80.00, unit: 'Unidade', size: 'Universitário', material: '', description: '' },
+        { id: 'p28', name: 'Caderno Espiral - 25x18', category: 'Impressão', basePrice: 0.00, salePrice: 80.00, margin: 0, unit: 'Unidade', size: '25x18cm', material: '', description: '' },
+        { id: 'p29', name: 'Caixa Granada Exército', category: 'Impressão', basePrice: 2.50, salePrice: 6.00, margin: 140.00, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p30', name: 'Caixa Kit Lanche', category: 'Impressão', basePrice: 9.82, salePrice: 17.60, margin: 79.23, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p31', name: 'Caixa Milk Básica', category: 'Personalizados', basePrice: 1.58, salePrice: 4.20, margin: 165.82, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p32', name: 'Caixa Milk Semi-Luxo', category: 'Personalizados', basePrice: 0.00, salePrice: 4.70, margin: 0, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p33', name: 'Caixa Mochila do Exército', category: 'Impressão', basePrice: 2.50, salePrice: 6.00, margin: 140.00, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p34', name: 'Caixa Personalizada', category: 'Impressão', basePrice: 0.00, salePrice: 4.70, margin: 0, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p35', name: 'Caixa Regador', category: 'Personalizados', basePrice: 3.00, salePrice: 8.00, margin: 166.67, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p36', name: 'Caixa Roda Gigante', category: 'Personalizados', basePrice: 3.00, salePrice: 8.00, margin: 166.67, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p37', name: 'Caneca', category: 'Impressão', basePrice: 0.00, salePrice: 50.00, margin: 0, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p38', name: 'Cardápio A4 -Plastificado 8 pág. Frente e Verso', category: 'Impressão', basePrice: 0.00, salePrice: 28.00, margin: 0, unit: 'Unidade', size: 'A4', material: '', description: '' },
+        { id: 'p39', name: 'Cartão de Visita - 4x1 - 250g Verniz Frente - 1000 Un.', category: 'Impressão', basePrice: 64.87, salePrice: 110.00, margin: 69.57, unit: 'Milheiro', size: '9x5cm', material: '250g', description: '' },
+        { id: 'p40', name: 'Cartão de Visita - 4x4 - 250g Verniz Frente - 1000 Un.', category: 'Impressão', basePrice: 72.69, salePrice: 125.00, margin: 71.96, unit: 'Milheiro', size: '9x5cm', material: '250g', description: '' },
+        { id: 'p41', name: 'Centro de Mesa Sextavado', category: 'Personalizados', basePrice: 4.73, salePrice: 8.00, margin: 69.13, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p42', name: 'Chaveiro de Acrílico 3x4', category: 'Personalizados', basePrice: 3.65, salePrice: 10.00, margin: 173.97, unit: 'Unidade', size: '3x4cm', material: 'Acrílico', description: '' },
+        { id: 'p43', name: 'Chaveiro Fio de Malha com tag', category: 'Impressão', basePrice: 0.00, salePrice: 10.00, margin: 0, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p44', name: 'Convite Digital Cortesia', category: 'Impressão', basePrice: 0.00, salePrice: 0.01, margin: 0, unit: 'Unidade', size: 'Digital', material: '', description: '' },
+        { id: 'p45', name: 'Diario de Oração', category: 'Impressão', basePrice: 0.00, salePrice: 50.00, margin: 0, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p46', name: 'Display de Mesa', category: 'Personalizados', basePrice: 2.50, salePrice: 8.00, margin: 220.00, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p47', name: 'Encadernação até 150 folhas', category: 'Encadernação', basePrice: 2.00, salePrice: 10.00, margin: 400.00, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p48', name: 'Esfera de Natal - Bolinha Avulsa', category: 'Impressão', basePrice: 2.00, salePrice: 6.00, margin: 200.00, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p49', name: 'Etiquetas Escolares Kit 1 - 43 un.', category: 'Adesivo', basePrice: 4.93, salePrice: 25.00, margin: 407.10, unit: 'Kit', size: '', material: 'Adesivo', description: '' },
+        { id: 'p50', name: 'Etiquetas Escolares Kit 2 - 86 un.', category: 'Adesivo', basePrice: 6.81, salePrice: 35.00, margin: 413.95, unit: 'Kit', size: '', material: 'Adesivo', description: '' },
+        { id: 'p51', name: 'Etiquetas Escolares Kit 3 - 120 un.', category: 'Adesivo', basePrice: 8.95, salePrice: 45.00, margin: 402.79, unit: 'Kit', size: '', material: 'Adesivo', description: '' },
+        { id: 'p52', name: 'Kit Agenda + Caderno', category: 'Impressão', basePrice: 45.00, salePrice: 90.00, margin: 100.00, unit: 'Kit', size: '', material: '', description: '' },
+        { id: 'p53', name: 'Kit Esfera de Natal - Bolinha', category: 'Impressão', basePrice: 6.00, salePrice: 18.00, margin: 200.00, unit: 'Kit', size: '', material: '', description: '' },
+        { id: 'p54', name: 'Kit M Festa na Mesa', category: 'Impressão', basePrice: 25.00, salePrice: 106.25, margin: 325.00, unit: 'Kit', size: '', material: '', description: '' },
+        { id: 'p55', name: 'Kit P Festa na Mesa', category: 'Impressão', basePrice: 20.00, salePrice: 60.00, margin: 200.00, unit: 'Kit', size: '', material: '', description: '' },
+        { id: 'p56', name: 'Kit pegue e monte 30 peças', category: 'Impressão', basePrice: 0.00, salePrice: 90.00, margin: 0, unit: 'Kit', size: '', material: '', description: '' },
+        { id: 'p57', name: 'Mini Caderno A6', category: 'Impressão', basePrice: 6.00, salePrice: 18.00, margin: 200.00, unit: 'Unidade', size: 'A6', material: '', description: '' },
+        { id: 'p58', name: 'Nossa Senhora de Vidro tam. 30cm', category: 'Personalizados', basePrice: 6.65, salePrice: 15.00, margin: 125.56, unit: 'Unidade', size: '30cm', material: 'Vidro', description: '' },
+        { id: 'p59', name: 'Painel 60x40', category: 'Personalizados', basePrice: 0.00, salePrice: 60.00, margin: 0, unit: 'Unidade', size: '60x40cm', material: '', description: '' },
+        { id: 'p60', name: 'Planner Mensal', category: 'Impressão', basePrice: 0.00, salePrice: 50.00, margin: 0, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p61', name: 'Planner Semanal', category: 'Impressão', basePrice: 0.00, salePrice: 50.00, margin: 0, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p62', name: 'Porta Bis', category: 'Impressão', basePrice: 0.00, salePrice: 2.70, margin: 0, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p63', name: 'Quadro de Parede A4', category: 'Personalizados', basePrice: 1.78, salePrice: 8.00, margin: 349.44, unit: 'Unidade', size: 'A4', material: '', description: '' },
+        { id: 'p64', name: 'Quadro infantil ilustrado 21x28cm em papel 180g', category: 'Impressão', basePrice: 2.35, salePrice: 7.25, margin: 208.51, unit: 'Unidade', size: '21x28cm', material: '180g', description: '' },
+        { id: 'p65', name: 'Sacola Personalizada 15x20,5x5', category: 'Personalizados', basePrice: 2.50, salePrice: 7.00, margin: 180.00, unit: 'Unidade', size: '15x20,5x5cm', material: '', description: '' },
+        { id: 'p66', name: 'Saquinho de Suspiro', category: 'Impressão', basePrice: 2.30, salePrice: 7.15, margin: 210.87, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p67', name: 'Serviço de Corte e Vinco A4 - Colaborador', category: 'Outros', basePrice: 0.80, salePrice: 1.30, margin: 62.50, unit: 'Unidade', size: 'A4', material: '', description: '' },
+        { id: 'p68', name: 'Tag 10x7 - Papel 180g - 450 un.', category: 'Impressão', basePrice: 0.00, salePrice: 98.00, margin: 0, unit: 'Pacote', size: '10x7cm', material: '180g', description: '' },
+        { id: 'p69', name: 'Tag para Canetas 18x5,5', category: 'Personalizados', basePrice: 0.32, salePrice: 0.85, margin: 165.63, unit: 'Unidade', size: '18x5,5cm', material: '', description: '' },
+        { id: 'p70', name: 'Tobolata 7x10 cm', category: 'Personalizados', basePrice: 4.40, salePrice: 11.00, margin: 150.00, unit: 'Unidade', size: '7x10cm', material: '', description: '' },
+        { id: 'p71', name: 'Topo de bolo Simples', category: 'Personalizados', basePrice: 0.00, salePrice: 15.00, margin: 0, unit: 'Unidade', size: '', material: '', description: '' },
+        { id: 'p72', name: 'Topper de Docinho 35x35cm com palito', category: 'Impressão', basePrice: 0.00, salePrice: 0.90, margin: 0, unit: 'Unidade', size: '35x35cm', material: '', description: '' },
+        { id: 'p73', name: 'Topper para Cupcake - 4x4cm com palito', category: 'Impressão', basePrice: 0.00, salePrice: 0.98, margin: 0, unit: 'Unidade', size: '4x4cm', material: '', description: '' },
+        { id: 'p74', name: 'Tubete 13cm', category: 'Personalizados', basePrice: 0.00, salePrice: 2.70, margin: 0, unit: 'Unidade', size: '13cm', material: '', description: '' },
+        { id: 'p75', name: 'Vela Aromatizada', category: 'Personalizados', basePrice: 8.80, salePrice: 19.00, margin: 115.91, unit: 'Unidade', size: '', material: '', description: '' }
       ];
       saveProducts(initial);
     }
@@ -286,6 +359,9 @@ const Products: React.FC = () => {
                       onChange={e => setFormData({...formData, category: e.target.value})}
                     >
                       <option value="Impressão">Impressão</option>
+                      <option value="Adesivo">Adesivo</option>
+                      <option value="Personalizados">Personalizados</option>
+                      <option value="Encadernação">Encadernação</option>
                       <option value="Acabamento">Acabamento</option>
                       <option value="Design">Design</option>
                       <option value="Comunicação Visual">Comunicação Visual</option>
@@ -350,6 +426,8 @@ const Products: React.FC = () => {
                       <option value="M. Linear">M. Linear</option>
                       <option value="Bloco">Bloco</option>
                       <option value="Hora">Hora</option>
+                      <option value="Kit">Kit</option>
+                      <option value="Pacote">Pacote</option>
                     </select>
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
